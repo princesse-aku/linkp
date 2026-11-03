@@ -30,6 +30,20 @@ def _configure() -> None:
     )
 
 
+def ensure_configured() -> None:
+    """Vérifie Cloudinary avant une action coûteuse (ex. génération d'image payante)."""
+    _configure()
+
+
+def register(uid: str, uploaded: dict, filename: str) -> dict:
+    """Ajoute un fichier envoyé sur Cloudinary à la médiathèque de l'utilisateur (Firestore)."""
+    from ..store import now, sub
+
+    doc = {**uploaded, "filename": filename, "created_at": now()}
+    _, ref = sub(uid, "media").add(doc)
+    return {**doc, "id": ref.id}
+
+
 def validate(content_type: str | None, size: int) -> None:
     if content_type not in ALLOWED_TYPES:
         raise MediaError("Format non pris en charge (JPEG, PNG, WebP, GIF ou PDF).")

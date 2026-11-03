@@ -72,6 +72,10 @@ Chaque utilisateur connecte son propre agenda depuis le dashboard. Les jetons so
 
 Renseigner `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (tableau de bord Cloudinary). Les fichiers sont rangés dans `{CLOUDINARY_FOLDER}/{ENV}/{uid}/`.
 
+### Images des posts (RodiumAI + Cloudinary)
+
+Le bouton « Générer une image » d'un post crée une image professionnelle avec le modèle `RODIUM_IMAGE_MODEL` (par défaut `google/gemini-3.1-flash-lite-image`, avec la clé RodiumAI de l'utilisateur, donc facturée sur son compte RodiumAI), l'envoie sur Cloudinary, l'ajoute à la médiathèque et la joint au post. Cloudinary doit donc être configuré : sans cela, l'API refuse **avant** de générer l'image (rien n'est facturé pour rien).
+
 ### Mailtrap à la place de Mailpit (facultatif)
 
 Dans `.env` : `EMAIL_PROVIDER=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, et retirer `SMTP_HOST`/`SMTP_PORT` du bloc `environment` du service `backend` dans `docker-compose.yml`.

@@ -4,7 +4,7 @@ from ..auth import AuthUser, current_user
 from ..config import settings
 from ..schemas import MediaOut
 from ..services import media as media_svc
-from ..store import load_profile, now, sub, with_id
+from ..store import load_profile, sub, with_id
 
 router = APIRouter(prefix="/media", tags=["médias"])
 
@@ -30,9 +30,7 @@ async def upload_media(file: UploadFile = File(...), user: AuthUser = Depends(cu
     except media_svc.MediaError as exc:
         status = 503 if "configuré" in str(exc) else 400 if "Format" in str(exc) or "volumineux" in str(exc) else 502
         raise HTTPException(status, str(exc))
-    doc = {**uploaded, "filename": file.filename or "", "created_at": now()}
-    _, ref = sub(user.uid, "media").add(doc)
-    return _out({**doc, "id": ref.id})
+    return _out(media_svc.register(user.uid, uploaded, file.filename or ""))
 
 
 @router.delete("/{media_id}", status_code=204)

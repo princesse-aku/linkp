@@ -11,7 +11,7 @@ export class ApiError extends Error {
   }
 }
 
-function detailOf(body: unknown, status: number): string {
+export function detailOf(body: unknown, status: number): string {
   const detail = (body as { detail?: unknown } | null)?.detail;
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail) && detail[0]?.msg) return String(detail[0].msg); // erreur de validation FastAPI

@@ -63,7 +63,59 @@ export const IconHeart = ({ className = "h-4 w-4" }: P) => (
   </svg>
 );
 
-export const IconMenu = ({ className = "h-6 w-6" }: P) => (
+export const IconCopy = ({ className = "h-5 w-5" }: P) => (
+  <svg {...base} className={className}>
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+  </svg>
+);
+
+export const IconImage = ({ className = "h-5 w-5" }: P) => (
+  <svg {...base} className={className}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <circle cx="9" cy="10" r="1.6" />
+    <path d="M21 16l-5-5-9 9" />
+  </svg>
+);
+
+export const IconChevronDown = ({ className = "h-4 w-4" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+);
+
+export const IconClock = ({ className = "h-4 w-4" }: P) => (
+  <svg {...base} className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
+
+export const IconGrid = ({ className = "h-5 w-5" }: P) => (
+  <svg {...base} className={className}>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </svg>
+);
+
+export const IconList = ({ className = "h-5 w-5" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M8 6h13M8 12h13M8 18h13" />
+    <circle cx="4" cy="6" r="1" />
+    <circle cx="4" cy="12" r="1" />
+    <circle cx="4" cy="18" r="1" />
+  </svg>
+);
+
+export const IconTrash = ({ className = "h-5 w-5" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" />
+  </svg>
+);
+
+export const IconMenu =({ className = "h-6 w-6" }: P) => (
   <svg {...base} className={className}>
     <path d="M4 7h16M4 12h16M4 17h16" />
   </svg>

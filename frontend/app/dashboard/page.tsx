@@ -12,7 +12,7 @@ import { Notify, btnGhost } from "@/components/dashboard/ui";
 import Logo from "@/components/Logo";
 import { AI_KEY_PROBLEM, ApiError, api, errorMessage } from "@/lib/api";
 import { firebaseAuth } from "@/lib/firebase";
-import { AiKeyStatus, CalendarStatus, EMPTY_PROFILE, Example, GenerateResult, Media, Post, Profile } from "@/lib/types";
+import { AiKeyStatus, CalendarStatus, EMPTY_PROFILE, Example, Media, Post, Profile } from "@/lib/types";
 import { useAuth } from "@/lib/useAuth";
 
 const NAV = [
@@ -103,13 +103,6 @@ export default function Dashboard() {
     setVerifyBusy(false);
   }
 
-  function onGenerated({ posts: created, calendar: sync }: GenerateResult) {
-    setPosts(created);
-    if (sync.error) notify("error", `Posts générés, mais le rappel agenda a échoué : ${sync.error}`);
-    else if (sync.connected) notify("ok", `${created.length} posts générés, ${sync.synced} rappel(s) ajouté(s) à Google Agenda.`);
-    else notify("ok", `${created.length} posts générés.`);
-  }
-
   async function logout() {
     await signOut(firebaseAuth());
     router.push("/");
@@ -179,7 +172,15 @@ export default function Dashboard() {
 
         <ProfileSection profile={profile} onChange={setProfile} aiKey={aiKey} onAiKey={setAiKey} notify={notify} />
         <StyleSection examples={examples} setExamples={setExamples} profile={profile} onProfile={setProfile} aiReady={aiKey.configured} notify={notify} />
-        <PostsSection posts={posts} setPosts={setPosts} media={media} profile={profile} aiReady={aiKey.configured} onGenerated={onGenerated} notify={notify} />
+        <PostsSection
+          posts={posts}
+          setPosts={setPosts}
+          media={media}
+          onMedia={(m) => setMedia((prev) => [m, ...prev])}
+          profile={profile}
+          aiReady={aiKey.configured}
+          notify={notify}
+        />
         <MediaSection media={media} setMedia={setMedia} notify={notify} />
         <CalendarSection status={calendar} setStatus={setCalendar} onSynced={() => reloadPosts().catch(() => undefined)} notify={notify} />
       </main>

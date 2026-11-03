@@ -102,6 +102,22 @@ class GenerateIn(BaseModel):
     replace_drafts: bool = True
 
 
+class GenerateOneIn(BaseModel):
+    theme: str = Field(min_length=1, max_length=120)
+    scheduled_for: str
+
+    @field_validator("scheduled_for")
+    @classmethod
+    def _iso(cls, v: str) -> str:
+        from datetime import datetime
+
+        try:
+            datetime.fromisoformat(v)
+        except ValueError:
+            raise ValueError("Date de publication invalide.")
+        return v
+
+
 class CalendarSyncResult(BaseModel):
     connected: bool = False
     synced: int = 0
@@ -123,6 +139,15 @@ class MediaOut(BaseModel):
     filename: str = ""
     resource_type: str = "image"
     bytes: int = 0
+
+
+class PostImageIn(BaseModel):
+    instruction: str = Field("", max_length=300)
+
+
+class PostImageOut(BaseModel):
+    post: PostOut
+    media: MediaOut
 
 
 class CalendarStatus(BaseModel):

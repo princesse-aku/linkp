@@ -48,6 +48,8 @@ export type Media = {
   bytes: number;
 };
 
+export type PostImageResult = { post: Post; media: Media };
+
 export type AiKeyStatus = { configured: boolean; last4: string | null };
 
 export type CalendarStatus = { configured: boolean; connected: boolean; email: string | null };
@@ -55,6 +57,16 @@ export type CalendarStatus = { configured: boolean; connected: boolean; email: s
 export type CalendarSync = { connected: boolean; synced: number; error: string | null };
 
 export type GenerateResult = { posts: Post[]; calendar: CalendarSync };
+
+// Événements envoyés par POST /posts/generate/stream
+export type GenSlot = { index: number; theme: string; scheduled_for: string };
+export type GenerateDone = { type: "done"; created: number; failed: number; calendar: CalendarSync };
+export type GenerateEvent =
+  | { type: "start"; total: number; slots: GenSlot[] }
+  | { type: "post"; index: number; post: Post }
+  | { type: "post_error"; index: number; message: string }
+  | { type: "fatal"; status: number; message: string }
+  | GenerateDone;
 
 export const EMPTY_PROFILE: Profile = {
   full_name: "",

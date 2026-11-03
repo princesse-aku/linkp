@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     # RodiumAI (compatible OpenAI) : chaque utilisateur apporte sa propre clé, le serveur n'en a pas.
     rodium_api_url: str = "https://api.rodiumai.io/v1"
     rodium_model: str = "google/gemini-3.8-flash"
+    rodium_image_model: str = "google/gemini-3.1-flash-lite-image"
+    rodium_image_size: str = "1536x1024"  # ratio 3:2, adapté aux posts LinkedIn
 
     # Google Agenda (OAuth)
     google_client_id: str = ""

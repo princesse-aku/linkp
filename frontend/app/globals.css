@@ -51,6 +51,27 @@ section[id] {
   animation: fade-up 0.8s ease both;
 }
 
+/* Squelettes de chargement : bloc beige avec un reflet qui traverse */
+@keyframes shimmer {
+  to { transform: translateX(100%); }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #efe6d8;
+  border-radius: 6px;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
 @keyframes marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
@@ -145,6 +166,10 @@ section[id] {
   .draw {
     animation: none;
     stroke-dashoffset: 0;
+  }
+  .skeleton::after {
+    animation: none;
+    display: none;
   }
 }
 

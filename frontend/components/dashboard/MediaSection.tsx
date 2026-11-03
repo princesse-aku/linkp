@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { ImageThumb, type ViewerImage, downloadUrl, isPdf, useImageViewer } from "@/components/ImageViewer";
 import { api, errorMessage } from "@/lib/api";
 import type { Media } from "@/lib/types";
 import { Notify, Section, btnDark } from "./ui";
@@ -18,6 +19,11 @@ export default function MediaSection({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+
+  // Visionneuse : parcourt toutes les images de la médiathèque (les PDF s'ouvrent dans un onglet).
+  const viewer = useImageViewer();
+  const label = (m: Media) => (m.filename || "image").replace(/\.[^.]+$/, "");
+  const gallery: ViewerImage[] = media.filter((m) => !isPdf(m.url)).map((m) => ({ url: m.url, name: label(m) }));
 
   async function upload(files: FileList | null) {
     if (!files?.length) return;
@@ -69,19 +75,21 @@ export default function MediaSection({
         <ul className="grid gap-4 sm:grid-cols-3">
           {media.map((m) => (
             <li key={m.id} className="overflow-hidden rounded-lg border border-stone-200">
-              <a href={m.url} target="_blank" rel="noopener noreferrer" className="block">
-                {m.url.toLowerCase().endsWith(".pdf") ? (
-                  <div className="flex h-28 items-center justify-center bg-cream font-serif text-2xl text-accent">PDF</div>
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={m.url} alt={m.filename || "Fichier"} className="h-28 w-full object-cover" />
-                )}
-              </a>
+              <ImageThumb
+                url={m.url}
+                name={label(m)}
+                className="h-28 w-full"
+                wrapperClass="block"
+                onOpen={() => viewer.open(gallery, Math.max(0, gallery.findIndex((g) => g.url === m.url)))}
+              />
               <div className="space-y-1 p-3 text-sm">
                 <p className="truncate font-medium" title={m.filename}>
                   {m.filename || "Fichier"}
                 </p>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  <a href={downloadUrl(m.url, label(m))} download className="font-medium text-accent">
+                    Télécharger
+                  </a>
                   <button type="button" onClick={() => copy(m.url)} className="font-medium text-accent">
                     Copier le lien
                   </button>
@@ -94,6 +102,7 @@ export default function MediaSection({
           ))}
         </ul>
       )}
+      {viewer.node}
     </Section>
   );
 }

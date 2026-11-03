@@ -14,6 +14,7 @@ import {
   IconSpark,
   IconTrash,
 } from "@/components/Icons";
+import { ImageThumb, type ViewerImage, isPdf, slug, useImageViewer } from "@/components/ImageViewer";
 import { api, errorMessage } from "@/lib/api";
 import { streamGenerate } from "@/lib/stream";
 import type { GenSlot, GenerateDone, Media, Post, PostImageResult, PostStatus, Profile } from "@/lib/types";
@@ -41,7 +42,6 @@ const longDate = (iso: string) => {
   const text = new Date(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
   return text.charAt(0).toUpperCase() + text.slice(1); // « Lundi 9 novembre »
 };
-const isPdf = (url: string) => url.toLowerCase().endsWith(".pdf");
 
 // ---------- Petits éléments ----------
 
@@ -79,22 +79,6 @@ function DateInline({ iso }: { iso: string | null }) {
         {timeLabel(iso)}
       </span>
     </div>
-  );
-}
-
-function Thumb({ url, className }: { url: string; className: string }) {
-  if (isPdf(url)) {
-    return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className={`flex items-center justify-center bg-cream font-serif text-lg text-accent ${className}`}>
-        PDF
-      </a>
-    );
-  }
-  return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="block">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt="Image du post" loading="lazy" className={`object-cover ${className}`} />
-    </a>
   );
 }
 
@@ -166,6 +150,11 @@ function PostCard({
   const grid = view === "grid";
   const long = post.content.length > 200 || post.content.split("\n").filter((l) => l.trim()).length > 3;
   const images = post.media_urls.filter((u) => !isPdf(u));
+
+  // Visionneuse plein écran : clic sur une image pour l'agrandir, la parcourir et la télécharger.
+  const viewer = useImageViewer();
+  const baseName = `linkp-${slug(post.theme, "post")}`;
+  const viewerImages: ViewerImage[] = images.map((url, i) => ({ url, name: images.length > 1 ? `${baseName}-${i + 1}` : baseName }));
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -380,11 +369,18 @@ function PostCard({
     </div>
   );
 
-  const rest = images.slice(grid ? 1 : 0);
+  const offset = grid ? 1 : 0; // en grille, la première image est la bannière
+  const rest = images.slice(offset);
   const gallery = (rest.length > 0 || (imageBusy && !grid)) && (
     <div className="mt-3 flex flex-wrap gap-2">
-      {rest.map((u) => (
-        <Thumb key={u} url={u} className="h-16 w-24 rounded-lg" />
+      {rest.map((u, i) => (
+        <ImageThumb
+          key={u}
+          url={u}
+          name={viewerImages[i + offset].name}
+          className="h-16 w-24 rounded-lg"
+          onOpen={() => viewer.open(viewerImages, i + offset)}
+        />
       ))}
       {imageBusy && !grid && imageSkeleton("h-16 w-40 rounded-lg")}
     </div>
@@ -399,7 +395,13 @@ function PostCard({
         {imageBusy ? (
           imageSkeleton("aspect-[3/2] w-full rounded-none")
         ) : images[0] ? (
-          <Thumb url={images[0]} className="aspect-[3/2] w-full" />
+          <ImageThumb
+            url={images[0]}
+            name={viewerImages[0].name}
+            className="aspect-[3/2] w-full"
+            wrapperClass="block"
+            onOpen={() => viewer.open(viewerImages, 0)}
+          />
         ) : (
           <div className="flex aspect-[3/2] w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-accent-soft/70 to-cream text-stone-500">
             <IconImage className="h-8 w-8 text-accent/60" />
@@ -414,6 +416,7 @@ function PostCard({
           {!editing && actions}
           {rewritePanel}
         </div>
+        {viewer.node}
       </li>
     );
   }
@@ -429,6 +432,7 @@ function PostCard({
         {!editing && actions}
         {rewritePanel}
       </div>
+      {viewer.node}
     </li>
   );
 }

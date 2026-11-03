@@ -115,7 +115,31 @@ export const IconTrash = ({ className = "h-5 w-5" }: P) => (
   </svg>
 );
 
-export const IconMenu =({ className = "h-6 w-6" }: P) => (
+export const IconDownload = ({ className = "h-5 w-5" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M12 3v12M7 10l5 5 5-5M4 20h16" />
+  </svg>
+);
+
+export const IconExternal = ({ className = "h-5 w-5" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+  </svg>
+);
+
+export const IconChevronLeft = ({ className = "h-6 w-6" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M15 6l-6 6 6 6" />
+  </svg>
+);
+
+export const IconChevronRight = ({ className = "h-6 w-6" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
+
+export const IconMenu = ({ className = "h-6 w-6" }: P) => (
   <svg {...base} className={className}>
     <path d="M4 7h16M4 12h16M4 17h16" />
   </svg>

@@ -1,0 +1,22 @@
+[project]
+name = "linkp-api"
+version = "0.1.0"
+description = "API LinkP (FastAPI, Firebase, RodiumAI, Cloudinary)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115,<1",
+    "uvicorn[standard]>=0.34,<1",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+    "firebase-admin>=6.6,<8",
+    "google-cloud-firestore>=2.19,<3",
+    "httpx>=0.28,<1",
+    "pyjwt>=2.10,<3",
+    "cloudinary>=1.41,<2",
+    "python-multipart>=0.0.20",
+    "tzdata",
+]
+
+# Point d'entree utilise par `fastapi dev`, `fastapi run` et FastAPI Cloud.
+[tool.fastapi]
+entrypoint = "app.main:app"

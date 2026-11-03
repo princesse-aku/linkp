@@ -1,0 +1,6 @@
+{
+  "firestore": {
+    "rules": "emulators/firestore.rules",
+    "indexes": "emulators/firestore.indexes.json"
+  }
+}

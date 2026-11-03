@@ -96,3 +96,20 @@ emulators/   Émulateurs Firebase (Docker), règles Firestore
 ```
 
 Ne jamais commiter le fichier `.env` (il est ignoré par git).
+
+## Déploiement en production
+
+Projet Firebase : `link-p27` (Authentification email et Google activées, règles Firestore fermées, application web enregistrée). Les emails partent de `LinkP <hello@alaprincesse.com>` via Resend : le domaine `alaprincesse.com` doit être vérifié dans Resend (enregistrements SPF et DKIM chez le registrar).
+
+### API sur FastAPI Cloud
+
+1. Crée ton compte sur FastAPI Cloud, puis `fastapi cloud login` (depuis `backend/`).
+2. Copie `backend/env.production.example` en `backend/.env.production` (ignoré par Git) et remplis les valeurs :
+   - `SECRET_KEY` et `ENCRYPTION_KEY` : valeurs aléatoires neuves.
+   - `FIREBASE_SERVICE_ACCOUNT_JSON` : console Firebase, Paramètres du projet, Comptes de service, Générer une nouvelle clé privée (colle le JSON sur une seule ligne).
+   - `RESEND_API_KEY`, `CLOUDINARY_*`, `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET`.
+3. `.\scripts\push-prod-env.ps1` envoie les variables (les sensibles en secret), puis `fastapi cloud deploy`.
+4. Reporte l'URL publique de l'API dans `BACKEND_PUBLIC_URL` et dans le frontend (`NEXT_PUBLIC_API_URL`).
+5. Google Cloud, Clients, « LinkP Agenda » : ajoute `{URL de l'API}/api/calendar/callback` aux URI de redirection autorisées.
+6. Firebase, Authentification, Paramètres, Domaines autorisés : ajoute le domaine du frontend.
+7. Frontend en production : `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=link-p27.firebaseapp.com`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID=link-p27`, `NEXT_PUBLIC_FIREBASE_APP_ID` (valeurs de `firebase apps:sdkconfig WEB --project link-p27`), `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL` vide, `NEXT_PUBLIC_SITE_URL`.

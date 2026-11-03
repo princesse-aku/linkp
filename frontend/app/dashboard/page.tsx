@@ -1,263 +1,154 @@
 "use client";
 
+import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { api, type Example, type Post, type Profile } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { useCallback, useEffect, useState } from "react";
+import CalendarSection from "@/components/dashboard/CalendarSection";
+import MediaSection from "@/components/dashboard/MediaSection";
+import PostsSection from "@/components/dashboard/PostsSection";
+import ProfileSection from "@/components/dashboard/ProfileSection";
+import StyleSection from "@/components/dashboard/StyleSection";
+import { Notify, btnGhost } from "@/components/dashboard/ui";
 import Logo from "@/components/Logo";
+import { api, errorMessage } from "@/lib/api";
+import { firebaseAuth } from "@/lib/firebase";
+import { CalendarStatus, EMPTY_PROFILE, Example, GenerateResult, Media, Post, Profile } from "@/lib/types";
+import { useAuth } from "@/lib/useAuth";
 
-const TONES = ["Professionnel", "Inspirant", "Humoristique", "Storytelling", "Pédagogue", "Direct", "Bienveillant", "Provocateur"];
-
-const EMPTY: Profile = {
-  full_name: "",
-  job_title: "",
-  industry: "",
-  bio: "",
-  language: "fr",
-  tones: [],
-  themes: [],
-  start_date: null,
-  end_date: null,
-  posts_per_week: 3,
-  publish_time: null,
-};
-
-const input = "w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base";
-
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-stone-200 bg-white p-6">
-      <h2 className="font-serif text-2xl font-medium">{title}</h2>
-      {hint && <p className="mt-1 text-base text-stone-500">{hint}</p>}
-      <div className="mt-5 space-y-4">{children}</div>
-    </section>
-  );
-}
+const NAV = [
+  ["#profil", "Profil"],
+  ["#style", "Style"],
+  ["#posts", "Posts"],
+  ["#mediatheque", "Médiathèque"],
+  ["#agenda", "Agenda"],
+];
 
 export default function Dashboard() {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const [ready, setReady] = useState(false);
-  const [profile, setProfile] = useState<Profile>(EMPTY);
+  const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
   const [examples, setExamples] = useState<Example[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [themeInput, setThemeInput] = useState("");
-  const [exampleInput, setExampleInput] = useState("");
-  const [msg, setMsg] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState("");
+  const [media, setMedia] = useState<Media[]>([]);
+  const [calendar, setCalendar] = useState<CalendarStatus | null>(null);
+  const [flash, setFlash] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [verifyBusy, setVerifyBusy] = useState(false);
+
+  const notify: Notify = useCallback((type, text) => {
+    setFlash({ type, text });
+    if (type === "ok") setTimeout(() => setFlash((f) => (f?.text === text ? null : f)), 5000);
+  }, []);
+
+  const reloadPosts = useCallback(() => api<Post[]>("/posts").then(setPosts), []);
 
   useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
     (async () => {
-      const { data } = await supabase().auth.getSession();
-      if (!data.session) return router.replace("/login");
       try {
-        const [p, e, g] = await Promise.all([
+        const [p, e, g, m, c] = await Promise.all([
           api<Profile>("/profile"),
           api<Example[]>("/examples"),
           api<Post[]>("/posts"),
+          api<Media[]>("/media"),
+          api<CalendarStatus>("/calendar/status"),
         ]);
         setProfile(p);
         setExamples(e);
         setPosts(g);
+        setMedia(m);
+        setCalendar(c);
       } catch (err) {
-        setError((err as Error).message);
+        notify("error", errorMessage(err));
       }
       setReady(true);
+
+      // Retour de la page de consentement Google Agenda
+      const result = new URLSearchParams(window.location.search).get("calendar");
+      if (result) {
+        window.history.replaceState(null, "", "/dashboard");
+        if (result === "connected") notify("ok", "Google Agenda est connecté.");
+        else notify("error", "La connexion à Google Agenda n'a pas abouti. Réessaie.");
+      }
     })();
-  }, [router]);
+  }, [user, loading, router, notify]);
 
-  const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setProfile((p) => ({ ...p, [k]: v }));
-
-  async function run(name: string, fn: () => Promise<void>) {
-    setBusy(name);
-    setMsg("");
-    setError("");
+  async function resendVerification() {
+    setVerifyBusy(true);
     try {
-      await fn();
+      await api("/auth/resend-verification", { method: "POST" });
+      notify("ok", "Email de confirmation envoyé.");
     } catch (err) {
-      setError((err as Error).message);
+      notify("error", errorMessage(err));
     }
-    setBusy("");
+    setVerifyBusy(false);
   }
 
-  const save = () =>
-    run("save", async () => {
-      const p = await api<Profile>("/profile", { method: "PUT", body: JSON.stringify(profile) });
-      setProfile(p);
-      setMsg("Informations enregistrées.");
-    });
-
-  const generate = () =>
-    run("gen", async () => {
-      await api<Profile>("/profile", { method: "PUT", body: JSON.stringify(profile) });
-      setPosts(await api<Post[]>("/posts/generate", { method: "POST" }));
-      setMsg("Posts générés.");
-    });
-
-  const addExample = () =>
-    run("ex", async () => {
-      const ex = await api<Example>("/examples", { method: "POST", body: JSON.stringify({ content: exampleInput }) });
-      setExamples((l) => [ex, ...l]);
-      setExampleInput("");
-    });
-
-  const removeExample = (id: number) =>
-    run("ex", async () => {
-      await api(`/examples/${id}`, { method: "DELETE" });
-      setExamples((l) => l.filter((e) => e.id !== id));
-    });
-
-  function addTheme() {
-    const t = themeInput.trim();
-    if (t && !profile.themes.includes(t)) set("themes", [...profile.themes, t]);
-    setThemeInput("");
+  function onGenerated({ posts: created, calendar: sync }: GenerateResult) {
+    setPosts(created);
+    if (sync.error) notify("error", `Posts générés, mais le rappel agenda a échoué : ${sync.error}`);
+    else if (sync.connected) notify("ok", `${created.length} posts générés, ${sync.synced} rappel(s) ajouté(s) à Google Agenda.`);
+    else notify("ok", `${created.length} posts générés.`);
   }
 
   async function logout() {
-    await supabase().auth.signOut();
+    await signOut(firebaseAuth());
     router.push("/");
   }
 
-  if (!ready) return <p className="p-10 text-center text-stone-500">Chargement…</p>;
+  if (loading || !user || !ready) return <p className="p-10 text-center text-stone-500">Chargement…</p>;
 
   return (
     <>
-      <header className="border-b border-stone-200 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
+      <header className="sticky top-0 z-20 border-b border-line bg-cream/90 backdrop-blur">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-6 py-3">
           <Logo />
-          <button onClick={logout} className="text-base font-medium text-stone-600 hover:text-stone-900">
+          <nav className="hidden items-center gap-5 text-base font-medium text-stone-600 md:flex" aria-label="Sections">
+            {NAV.map(([href, label]) => (
+              <a key={href} href={href} className="hover:text-ink">
+                {label}
+              </a>
+            ))}
+          </nav>
+          <button onClick={logout} className="text-base font-medium text-stone-600 hover:text-ink">
             Déconnexion
           </button>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 space-y-6 px-6 py-10">
-        <h1 className="font-serif text-4xl font-medium">Ton espace</h1>
-
-        <Section title="Tes informations" hint="Ces infos aident à personnaliser tes posts.">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <input className={input} placeholder="Nom complet" value={profile.full_name} onChange={(e) => set("full_name", e.target.value)} />
-            <input className={input} placeholder="Poste / métier" value={profile.job_title} onChange={(e) => set("job_title", e.target.value)} />
-            <input className={input} placeholder="Secteur d'activité" value={profile.industry} onChange={(e) => set("industry", e.target.value)} />
-            <select className={input} value={profile.language} onChange={(e) => set("language", e.target.value)}>
-              <option value="fr">Français</option>
-              <option value="en">Anglais</option>
-            </select>
-          </div>
-          <textarea className={input} rows={3} placeholder="Quelques mots sur toi et ton audience" value={profile.bio} onChange={(e) => set("bio", e.target.value)} />
-        </Section>
-
-        <Section title="Tons de rédaction" hint="Choisis-en un ou plusieurs.">
-          <div className="flex flex-wrap gap-2">
-            {TONES.map((t) => {
-              const on = profile.tones.includes(t);
-              return (
-                <button
-                  key={t}
-                  onClick={() => set("tones", on ? profile.tones.filter((x) => x !== t) : [...profile.tones, t])}
-                  className={`rounded-full border px-4 py-1.5 text-base ${on ? "border-accent bg-accent text-white" : "border-stone-300 hover:bg-stone-50"}`}
-                >
-                  {t}
-                </button>
-              );
-            })}
-          </div>
-        </Section>
-
-        <Section title="Thèmes" hint="Les sujets sur lesquels tu veux écrire.">
-          <div className="flex gap-2">
-            <input
-              className={input}
-              placeholder="Ex : leadership, IA, recrutement…"
-              value={themeInput}
-              onChange={(e) => setThemeInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTheme())}
-            />
-            <button onClick={addTheme} className="rounded-lg bg-stone-900 px-4 text-base font-medium text-white">
-              Ajouter
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {profile.themes.map((t) => (
-              <span key={t} className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-base text-accent-dark">
-                {t}
-                <button aria-label={`Retirer ${t}`} onClick={() => set("themes", profile.themes.filter((x) => x !== t))}>
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        </Section>
-
-        <Section title="Période de programmation" hint="Quand veux-tu publier, et à quelle fréquence ?">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-base">
-              Du
-              <input type="date" className={`${input} mt-1`} value={profile.start_date ?? ""} onChange={(e) => set("start_date", e.target.value || null)} />
-            </label>
-            <label className="text-base">
-              Au
-              <input type="date" className={`${input} mt-1`} value={profile.end_date ?? ""} onChange={(e) => set("end_date", e.target.value || null)} />
-            </label>
-            <label className="text-base">
-              Posts par semaine
-              <input type="number" min={1} max={14} className={`${input} mt-1`} value={profile.posts_per_week} onChange={(e) => set("posts_per_week", Number(e.target.value))} />
-            </label>
-            <label className="text-base">
-              Heure de publication
-              <input type="time" className={`${input} mt-1`} value={profile.publish_time?.slice(0, 5) ?? ""} onChange={(e) => set("publish_time", e.target.value || null)} />
-            </label>
-          </div>
-        </Section>
-
-        <Section title="Tes posts passés" hint="Colle des posts que tu as déjà écrits : ils servent de référence pour ton style.">
-          <textarea className={input} rows={5} placeholder="Colle un post ici (20 caractères minimum)…" value={exampleInput} onChange={(e) => setExampleInput(e.target.value)} />
-          <button
-            onClick={addExample}
-            disabled={exampleInput.trim().length < 20 || busy === "ex"}
-            className="rounded-lg bg-stone-900 px-4 py-2 text-base font-medium text-white disabled:opacity-50"
-          >
-            Ajouter cet exemple
-          </button>
-          <ul className="space-y-3">
-            {examples.map((e) => (
-              <li key={e.id} className="rounded-lg border border-stone-200 p-4 text-base">
-                <p className="line-clamp-4 whitespace-pre-wrap">{e.content}</p>
-                <button onClick={() => removeExample(e.id)} className="mt-2 text-sm font-medium text-red-600">
-                  Supprimer
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Section>
-
-        {error && <p className="rounded-lg bg-red-50 p-3 text-base text-red-700">{error}</p>}
-        {msg && <p className="rounded-lg bg-green-50 p-3 text-base text-green-700">{msg}</p>}
-
-        <div className="flex flex-wrap gap-3">
-          <button onClick={save} disabled={!!busy} className="rounded-lg border border-stone-300 bg-white px-6 py-3 font-semibold hover:bg-stone-50 disabled:opacity-60">
-            {busy === "save" ? "Enregistrement…" : "Enregistrer"}
-          </button>
-          <button onClick={generate} disabled={!!busy} className="rounded-lg bg-accent px-6 py-3 font-semibold text-white hover:bg-accent-dark disabled:opacity-60">
-            {busy === "gen" ? "Génération…" : "Générer mes posts"}
-          </button>
+      <main className="mx-auto w-full max-w-4xl flex-1 space-y-6 px-6 py-10">
+        <div>
+          <h1 className="font-serif text-4xl font-medium">Ton espace</h1>
+          <p className="mt-1 text-base text-stone-500">{user.email}</p>
         </div>
 
-        {posts.length > 0 && (
-          <Section title="Tes posts programmés">
-            <ul className="space-y-3">
-              {posts.map((p) => (
-                <li key={p.id} className="rounded-lg border border-stone-200 p-4 text-base">
-                  <div className="mb-2 flex justify-between text-sm text-stone-500">
-                    <span>{p.theme}</span>
-                    <span>{p.scheduled_for && new Date(p.scheduled_for).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}</span>
-                  </div>
-                  <p className="whitespace-pre-wrap">{p.content}</p>
-                </li>
-              ))}
-            </ul>
-          </Section>
+        {user.email && !user.emailVerified && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft p-4 text-base">
+            <p>Confirme ton adresse email pour sécuriser ton compte.</p>
+            <button type="button" onClick={resendVerification} disabled={verifyBusy} className={btnGhost}>
+              {verifyBusy ? "Envoi…" : "Renvoyer l'email"}
+            </button>
+          </div>
         )}
+
+        {flash && (
+          <div
+            role={flash.type === "error" ? "alert" : "status"}
+            className={`rounded-xl p-4 text-base ${flash.type === "error" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-800"}`}
+          >
+            {flash.text}
+          </div>
+        )}
+
+        <ProfileSection profile={profile} onChange={setProfile} notify={notify} />
+        <StyleSection examples={examples} setExamples={setExamples} profile={profile} onProfile={setProfile} notify={notify} />
+        <PostsSection posts={posts} setPosts={setPosts} media={media} profile={profile} onGenerated={onGenerated} notify={notify} />
+        <MediaSection media={media} setMedia={setMedia} notify={notify} />
+        <CalendarSection status={calendar} setStatus={setCalendar} onSynced={() => reloadPosts().catch(() => undefined)} notify={notify} />
       </main>
     </>
   );

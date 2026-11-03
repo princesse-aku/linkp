@@ -1,29 +1,52 @@
 services:
-  db:
-    image: postgres:16-alpine
+  # Émulateurs Firebase : Auth (9099), Firestore (8080), interface (http://localhost:4000)
+  firebase:
+    build: ./emulators
     environment:
-      POSTGRES_USER: linkp
-      POSTGRES_PASSWORD: linkp
-      POSTGRES_DB: linkp
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-demo-linkp}
+    ports:
+      - "4000:4000"
+      - "8080:8080"
+      - "9099:9099"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - emulator-data:/data
+      - emulator-cache:/root/.cache
+    stop_grace_period: 30s
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U linkp"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:8080',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
       interval: 5s
-      retries: 10
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # Boîte mail de développement : les emails envoyés par l'API arrivent ici (http://localhost:8025)
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
 
   backend:
     build: ./backend
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg://linkp:linkp@db:5432/linkp
+      # Adresses internes au réseau Docker (le navigateur, lui, utilise localhost)
+      FIRESTORE_EMULATOR_HOST: firebase:8080
+      FIREBASE_AUTH_EMULATOR_HOST: firebase:9099
+      EMAIL_PROVIDER: smtp
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      WATCHFILES_FORCE_POLLING: "true"
     depends_on:
-      db:
+      firebase:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     ports:
       - "8000:8000"
     volumes:
       - ./backend/app:/code/app
+      - ./backend/tests:/code/tests
 
   frontend:
     build: ./frontend
@@ -40,4 +63,5 @@ services:
       - backend
 
 volumes:
-  pgdata:
+  emulator-data:
+  emulator-cache:

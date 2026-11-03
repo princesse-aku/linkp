@@ -1,40 +1,76 @@
 "use client";
 
+import { FirebaseError } from "firebase/app";
+import {
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+} from "firebase/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
+import { firebaseAuth } from "@/lib/firebase";
 import Logo from "./Logo";
+
+const MESSAGES: Record<string, string> = {
+  "auth/invalid-credential": "Email ou mot de passe incorrect.",
+  "auth/user-not-found": "Email ou mot de passe incorrect.",
+  "auth/wrong-password": "Email ou mot de passe incorrect.",
+  "auth/email-already-in-use": "Un compte existe déjà avec cet email. Connecte-toi.",
+  "auth/weak-password": "Le mot de passe doit contenir au moins 6 caractères.",
+  "auth/invalid-email": "Cette adresse email n'est pas valide.",
+  "auth/too-many-requests": "Trop de tentatives. Réessaie dans quelques minutes.",
+  "auth/network-request-failed": "Connexion impossible. Vérifie ta connexion internet.",
+  "auth/popup-closed-by-user": "La fenêtre Google a été fermée avant la fin.",
+  "auth/popup-blocked": "Le navigateur a bloqué la fenêtre Google. Autorise les popups.",
+};
+
+const readable = (err: unknown) =>
+  err instanceof FirebaseError ? (MESSAGES[err.code] ?? "Connexion impossible. Réessaie.") : "Une erreur est survenue.";
 
 export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const signup = mode === "signup";
+
+  // L'email de bienvenue ne doit jamais bloquer l'accès au compte.
+  const welcome = () => api("/auth/welcome", { method: "POST" }).catch(() => undefined);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    setInfo("");
     setBusy(true);
-    const { data, error } = signup
-      ? await supabase().auth.signUp({ email, password })
-      : await supabase().auth.signInWithPassword({ email, password });
-    setBusy(false);
-    if (error) return setError(error.message);
-    if (data.session) router.push("/dashboard");
-    else setInfo("Compte créé. Vérifie ta boîte mail pour confirmer ton adresse, puis connecte-toi.");
+    try {
+      if (signup) {
+        await createUserWithEmailAndPassword(firebaseAuth(), email, password);
+        await welcome();
+      } else {
+        await signInWithEmailAndPassword(firebaseAuth(), email, password);
+      }
+      router.push("/dashboard");
+    } catch (err) {
+      setError(readable(err));
+      setBusy(false);
+    }
   }
 
   async function google() {
-    const { error } = await supabase().auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${location.origin}/dashboard` },
-    });
-    if (error) setError(error.message);
+    setError("");
+    setBusy(true);
+    try {
+      const result = await signInWithPopup(firebaseAuth(), new GoogleAuthProvider());
+      if (getAdditionalUserInfo(result)?.isNewUser) await welcome();
+      router.push("/dashboard");
+    } catch (err) {
+      setError(readable(err));
+      setBusy(false);
+    }
   }
 
   return (
@@ -43,24 +79,21 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <Logo />
         <h1 className="mt-4 font-serif text-3xl font-medium">{signup ? "Créer un compte" : "Connexion"}</h1>
 
-        {process.env.NEXT_PUBLIC_ENABLE_GOOGLE === "true" ? (
-          <>
-            <button
-              onClick={google}
-              className="mt-6 w-full rounded-lg border border-stone-300 py-2.5 text-base font-medium hover:bg-stone-50"
-            >
-              Continuer avec Google
-            </button>
-            <div className="my-5 text-center text-sm text-stone-400">ou</div>
-          </>
-        ) : (
-          <div className="mt-6" />
-        )}
+        <button
+          type="button"
+          onClick={google}
+          disabled={busy}
+          className="mt-6 w-full rounded-lg border border-stone-300 py-2.5 text-base font-medium hover:bg-stone-50 disabled:opacity-60"
+        >
+          Continuer avec Google
+        </button>
+        <div className="my-5 text-center text-sm text-stone-400">ou</div>
 
         <form onSubmit={submit} className="space-y-4">
           <input
             type="email"
             required
+            autoComplete="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -70,13 +103,24 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
             type="password"
             required
             minLength={6}
+            autoComplete={signup ? "new-password" : "current-password"}
             placeholder="Mot de passe"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-base"
           />
-          {error && <p className="text-base text-red-600">{error}</p>}
-          {info && <p className="text-base text-green-700">{info}</p>}
+          {!signup && (
+            <p className="text-right text-sm">
+              <Link href="/forgot-password" className="font-medium text-accent hover:underline">
+                Mot de passe oublié ?
+              </Link>
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="text-base text-red-600">
+              {error}
+            </p>
+          )}
           <button
             disabled={busy}
             className="w-full rounded-lg bg-accent py-2.5 text-base font-semibold text-white hover:bg-accent-dark disabled:opacity-60"

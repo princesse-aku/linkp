@@ -40,10 +40,10 @@ export default function Footer() {
         {columns.map((c) => (
           <nav key={c.title} aria-label={c.title}>
             <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#E9B58F]">{c.title}</h2>
-            <ul className="mt-5 space-y-3 text-base">
+            <ul className="mt-3 text-base">
               {c.links.map(([href, label]) => (
                 <li key={href}>
-                  <Link href={href} className="text-cream/75 transition hover:text-white">
+                  <Link href={href} className="inline-flex min-h-11 items-center text-cream/75 transition hover:text-white md:min-h-9">
                     {label}
                   </Link>
                 </li>
@@ -66,7 +66,7 @@ export default function Footer() {
               href="https://www.linkedin.com/in/princess-alagnon/"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-cream underline decoration-accent decoration-2 underline-offset-4 transition hover:text-[#E9B58F]"
+              className="inline-flex min-h-11 items-center font-semibold text-cream underline decoration-accent decoration-2 underline-offset-4 transition hover:text-[#E9B58F]"
             >
               Princesse ALAGNON
             </a>

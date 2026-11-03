@@ -135,7 +135,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           onChange={setPassword}
           aside={
             !signup && (
-              <Link href="/forgot-password" className="text-sm font-medium text-accent hover:underline">
+              <Link href="/forgot-password" className="-my-3 inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">
                 Mot de passe oublié ?
               </Link>
             )

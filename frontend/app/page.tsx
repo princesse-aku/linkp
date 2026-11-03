@@ -242,7 +242,7 @@ export default function Home() {
                 >
                   Commencer gratuitement <IconArrowRight className="h-4 w-4" />
                 </Link>
-                <a href="#fonctionnement" className="text-base font-semibold text-ink underline decoration-accent decoration-2 underline-offset-8 hover:text-accent">
+                <a href="#fonctionnement" className="inline-flex min-h-11 items-center text-base font-semibold text-ink underline decoration-accent decoration-2 underline-offset-8 hover:text-accent">
                   Voir comment ça marche
                 </a>
               </div>
@@ -344,14 +344,18 @@ export default function Home() {
             <p className="mx-auto mt-4 max-w-2xl text-lg text-stone-600">
               Tu as de l&apos;expertise, une expérience, un point de vue. Il te manque juste le temps et les mots.
             </p>
-            <p className="mt-10 font-serif text-2xl italic leading-relaxed text-stone-500 sm:text-3xl">
+            <ul className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-serif text-2xl italic leading-relaxed text-stone-500 sm:text-3xl">
               {audiences.map((a, i) => (
-                <span key={a}>
+                <li key={a} className="flex items-center gap-3">
                   <span className="text-ink">{a}</span>
-                  {i < audiences.length - 1 && <span className="mx-3 text-accent">/</span>}
-                </span>
+                  {i < audiences.length - 1 && (
+                    <span className="text-accent" aria-hidden>
+                      /
+                    </span>
+                  )}
+                </li>
               ))}
-            </p>
+            </ul>
             <div className="mt-6 flex justify-center text-accent">
               <DoodleSquiggle />
             </div>

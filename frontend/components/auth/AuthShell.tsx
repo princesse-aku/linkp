@@ -131,7 +131,7 @@ export default function AuthShell({
           <h1 className="mt-4 font-serif text-4xl font-medium leading-[1.08] tracking-tight sm:text-5xl [&_em]:italic [&_em]:text-accent">{title}</h1>
           {subtitle && <p className="mt-4 text-lg leading-relaxed text-stone-600">{subtitle}</p>}
           <div className="mt-8">{children}</div>
-          {footer && <div className="mt-8 text-center text-base text-stone-600">{footer}</div>}
+          {footer && <div className="mt-6 text-center text-base text-stone-600 [&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center">{footer}</div>}
         </div>
 
         <p className="text-center text-sm text-stone-500">LinkP, tes idées, ta voix.</p>

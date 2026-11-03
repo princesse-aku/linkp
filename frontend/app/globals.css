@@ -27,6 +27,12 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Filet de sécurité : aucun élément décoratif ne doit créer de défilement horizontal sur mobile. */
+html,
+body {
+  overflow-x: clip;
+}
+
 section[id] {
   scroll-margin-top: 6rem;
 }

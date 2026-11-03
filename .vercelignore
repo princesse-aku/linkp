@@ -1,0 +1,5 @@
+backend
+emulators
+frontend/node_modules
+frontend/.next
+.env

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import AuthUser, current_user
 from ..schemas import CalendarSyncResult, GenerateIn, GenerateOut, PostOut, PostRegenerate, PostUpdate
-from ..services import ai
+from ..services import ai, keys
 from ..services import calendar as gcal
 from ..services.planner import plan_slots
 from ..store import load_examples, load_profile, now, sub, with_id
@@ -59,6 +59,7 @@ def list_posts(user: AuthUser = Depends(current_user)):
 @router.post("/posts/generate", response_model=GenerateOut)
 def generate(body: GenerateIn | None = None, user: AuthUser = Depends(current_user)):
     body = body or GenerateIn()
+    api_key = keys.require_key(user.uid)
     profile = load_profile(user.uid, user.email)
     if not profile.themes:
         raise HTTPException(400, "Ajoute au moins un thème.")
@@ -72,11 +73,13 @@ def generate(body: GenerateIn | None = None, user: AuthUser = Depends(current_us
     themes = [profile.themes[i % len(profile.themes)] for i in range(len(slots))]
 
     def write(theme: str) -> str:
-        return ai.generate_post(profile, examples, theme, style=profile.style_analysis)
+        return ai.generate_post(profile, examples, theme, api_key=api_key, style=profile.style_analysis)
 
     try:
         with ThreadPoolExecutor(max_workers=4) as pool:
             texts = list(pool.map(write, themes))
+    except ai.AIKeyRejected:
+        raise  # géré par le gestionnaire global (424)
     except ai.AIError as exc:
         raise HTTPException(502, str(exc))
 
@@ -142,6 +145,7 @@ def update_post(post_id: str, body: PostUpdate, user: AuthUser = Depends(current
 
 @router.post("/posts/{post_id}/regenerate", response_model=PostOut)
 def regenerate(post_id: str, body: PostRegenerate, user: AuthUser = Depends(current_user)):
+    api_key = keys.require_key(user.uid)
     ref, post = _get(user.uid, post_id)
     profile = load_profile(user.uid, user.email)
     try:
@@ -149,10 +153,13 @@ def regenerate(post_id: str, body: PostRegenerate, user: AuthUser = Depends(curr
             profile,
             load_examples(user.uid),
             post.get("theme", ""),
+            api_key=api_key,
             style=profile.style_analysis,
             instruction=body.instruction,
             previous=post.get("content") if body.instruction else None,
         )
+    except ai.AIKeyRejected:
+        raise  # géré par le gestionnaire global (424)
     except ai.AIError as exc:
         raise HTTPException(502, str(exc))
     ref.update({"content": text, "updated_at": now()})

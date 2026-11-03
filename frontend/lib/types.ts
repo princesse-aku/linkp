@@ -48,6 +48,8 @@ export type Media = {
   bytes: number;
 };
 
+export type AiKeyStatus = { configured: boolean; last4: string | null };
+
 export type CalendarStatus = { configured: boolean; connected: boolean; email: string | null };
 
 export type CalendarSync = { connected: boolean; synced: number; error: string | null };

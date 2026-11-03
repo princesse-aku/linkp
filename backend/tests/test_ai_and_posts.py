@@ -114,7 +114,7 @@ def test_posts_are_private_per_user(client, user, other_user, fake_ai):
     assert client.delete(f"/api/posts/{post_id}", headers=other_user["headers"]).status_code == 404
 
 
-def test_ai_failure_is_reported_as_502(client, user, monkeypatch):
+def test_ai_failure_is_reported_as_502(client, user, ai_key, monkeypatch):
     from app.services import ai
 
     def boom(*a, **k):

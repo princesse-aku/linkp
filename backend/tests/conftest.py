@@ -67,22 +67,32 @@ def make_user():
 
 
 @pytest.fixture
-def fake_ai(monkeypatch):
+def ai_key(monkeypatch):
+    """Simule une clé RodiumAI déjà enregistrée pour l'utilisateur connecté."""
+    from app.services import keys
+
+    monkeypatch.setattr(keys, "require_key", lambda uid: "rd_sk_test_0000")
+
+
+@pytest.fixture
+def fake_ai(ai_key, monkeypatch):
     """Remplace RodiumAI par des réponses prévisibles."""
     from app.schemas import StyleAnalysis
     from app.services import ai
 
     calls: list[dict] = []
 
-    def generate_post(profile, examples, theme, *, style=None, instruction="", previous=None):
-        calls.append({"theme": theme, "instruction": instruction, "previous": previous, "style": style})
+    def generate_post(profile, examples, theme, *, api_key, style=None, instruction="", previous=None):
+        calls.append({"theme": theme, "instruction": instruction, "previous": previous, "style": style, "api_key": api_key})
         return f"[{instruction or 'nouveau'}] Post sur {theme}"
 
     monkeypatch.setattr(ai, "generate_post", generate_post)
     monkeypatch.setattr(
         ai,
         "analyze_style",
-        lambda profile, examples: StyleAnalysis(summary="Direct et chaleureux", tone_keywords=["direct"], examples_count=len(examples)),
+        lambda profile, examples, *, api_key: StyleAnalysis(
+            summary="Direct et chaleureux", tone_keywords=["direct"], examples_count=len(examples)
+        ),
     )
-    monkeypatch.setattr(ai, "suggest_themes", lambda profile, count=8: ["Leadership", "Recrutement"])
+    monkeypatch.setattr(ai, "suggest_themes", lambda profile, *, api_key, count=8: ["Leadership", "Recrutement"])
     return calls

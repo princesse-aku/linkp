@@ -9,7 +9,7 @@ from .config import settings
 from .firebase import init_firebase, using_emulator
 from .routers import ai as ai_router
 from .routers import auth, calendar, media, posts, profile
-from .services.ai import AIError
+from .services.ai import AIError, AIKeyMissing, AIKeyRejected
 from .services.calendar import CalendarError, NotConnected
 from .services.email import EmailError
 
@@ -21,6 +21,8 @@ log = logging.getLogger("linkp")
 async def lifespan(_: FastAPI):
     if settings.is_production and settings.secret_key.startswith("dev-"):
         raise RuntimeError("SECRET_KEY doit être une valeur aléatoire propre en production.")
+    if settings.is_production and not settings.encryption_key:
+        raise RuntimeError("ENCRYPTION_KEY est obligatoire en production (chiffre les clés RodiumAI des utilisateurs).")
     init_firebase()
     log.info(
         "Firebase prêt (projet %s, %s)",
@@ -40,6 +42,17 @@ app.add_middleware(
 
 for r in (auth.router, profile.router, ai_router.router, posts.router, calendar.router, media.router):
     app.include_router(r, prefix="/api")
+
+
+@app.exception_handler(AIKeyMissing)
+async def _ai_key_missing(_: Request, exc: AIKeyMissing):
+    # 428 : l'action demande d'abord de renseigner une clé RodiumAI
+    return JSONResponse({"detail": str(exc)}, status_code=428)
+
+
+@app.exception_handler(AIKeyRejected)
+async def _ai_key_rejected(_: Request, exc: AIKeyRejected):
+    return JSONResponse({"detail": str(exc)}, status_code=424)
 
 
 @app.exception_handler(AIError)

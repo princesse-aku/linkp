@@ -1,5 +1,7 @@
 import { firebaseAuth } from "./firebase";
 
+export const AI_KEY_PROBLEM = "linkp:ai-key-problem";
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -30,6 +32,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
+    // 428 : pas de clé RodiumAI, 424 : clé refusée. Le dashboard se met à jour.
+    if (res.status === 428 || res.status === 424) window.dispatchEvent(new Event(AI_KEY_PROBLEM));
     throw new ApiError(detailOf(body, res.status), res.status);
   }
   return res.status === 204 ? (undefined as T) : res.json();

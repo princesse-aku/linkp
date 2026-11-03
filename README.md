@@ -9,7 +9,7 @@ Plateforme qui aide à écrire des posts LinkedIn dans le style de chacun : idé
 | Authentification (email + Google) | Émulateur Firebase Auth | Firebase Auth |
 | Base de données | Émulateur Firestore | Firestore |
 | Emails (bienvenue, confirmation, mot de passe oublié) | Mailpit (boîte locale) | Resend |
-| IA (analyse, idées, rédaction) | RodiumAI, modèle `google/gemini-3.8-flash` | RodiumAI |
+| IA (analyse, idées, rédaction) | RodiumAI, modèle `google/gemini-3.8-flash`, **clé fournie par chaque utilisateur** | idem |
 | Rappels des posts programmés | Google Agenda API | Google Agenda API |
 | Fichiers (images, PDF) | Cloudinary | Cloudinary |
 
@@ -18,7 +18,7 @@ Frontend : Next.js + Tailwind. Backend : FastAPI. Tout tourne dans Docker Compos
 ## Démarrage en local
 
 ```bash
-cp .env.example .env      # puis remplir au minimum RODIUM_API_KEY
+cp .env.example .env      # les valeurs par défaut suffisent pour démarrer
 docker compose up --build
 ```
 
@@ -41,13 +41,19 @@ Les tests du backend tournent contre les émulateurs (IA, Google, Cloudinary et 
 docker compose run --rm backend pytest
 ```
 
-### Choisir le modèle d'IA
+### L'IA : la clé RodiumAI de chaque utilisateur
+
+Le serveur n'a aucune clé RodiumAI. Après l'inscription, l'utilisateur est invité à saisir la sienne (écran `/onboarding`). S'il ignore l'étape, il peut l'ajouter à tout moment dans son profil (section « Ta clé RodiumAI »). Tant qu'il n'y en a pas, les actions IA sont désactivées et un bandeau l'indique.
+
+- La clé est **vérifiée** auprès de RodiumAI à l'enregistrement, puis **chiffrée** (Fernet) dans Firestore (`users/{uid}/private/rodium`).
+- Elle n'est jamais renvoyée au navigateur : l'API ne donne que les 4 derniers caractères.
+- L'API répond `428` si aucune clé n'est enregistrée et `424` si RodiumAI refuse la clé.
+
+Choisir le modèle d'IA (pour tous les utilisateurs) : renseigner `RODIUM_MODEL` dans `.env`. Pour voir les identifiants disponibles, avec ta propre clé dans `RODIUM_API_KEY` :
 
 ```bash
 docker compose run --rm backend python -m app.scripts.list_models gemini
 ```
-
-Puis renseigner `RODIUM_MODEL` dans `.env`.
 
 ## Configuration des services
 
@@ -74,7 +80,7 @@ Dans `.env` : `EMAIL_PROVIDER=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMT
 
 1. **Firebase** : créer le projet, activer Authentication (Email/mot de passe + Google) et Firestore. Créer un compte de service (Paramètres > Comptes de service) et mettre son JSON dans `FIREBASE_SERVICE_ACCOUNT_JSON`. Renseigner les variables `NEXT_PUBLIC_FIREBASE_*` avec la config de l'application web, **laisser `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL` vide**. Ajouter ton domaine dans Authentication > Paramètres > Domaines autorisés. Déployer `emulators/firestore.rules` (accès client refusé : tout passe par l'API).
 2. **Resend** : vérifier ton domaine d'envoi, créer une clé API, puis `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM` (une adresse de ce domaine).
-3. `ENV=production`, une `SECRET_KEY` aléatoire (l'API refuse de démarrer sinon), `FRONTEND_ORIGIN` et `BACKEND_PUBLIC_URL` aux vraies adresses.
+3. `ENV=production`, une `SECRET_KEY` aléatoire et une `ENCRYPTION_KEY` (l'API refuse de démarrer sans elles ; sauvegarde bien l'`ENCRYPTION_KEY`, la perdre oblige chaque utilisateur à ressaisir sa clé RodiumAI), `FRONTEND_ORIGIN` et `BACKEND_PUBLIC_URL` aux vraies adresses.
 4. Ne pas définir `FIRESTORE_EMULATOR_HOST` ni `FIREBASE_AUTH_EMULATOR_HOST` (l'API refuse de démarrer si c'est le cas).
 
 ## Structure

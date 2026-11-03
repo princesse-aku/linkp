@@ -10,9 +10,9 @@ import ProfileSection from "@/components/dashboard/ProfileSection";
 import StyleSection from "@/components/dashboard/StyleSection";
 import { Notify, btnGhost } from "@/components/dashboard/ui";
 import Logo from "@/components/Logo";
-import { api, errorMessage } from "@/lib/api";
+import { AI_KEY_PROBLEM, api, errorMessage } from "@/lib/api";
 import { firebaseAuth } from "@/lib/firebase";
-import { CalendarStatus, EMPTY_PROFILE, Example, GenerateResult, Media, Post, Profile } from "@/lib/types";
+import { AiKeyStatus, CalendarStatus, EMPTY_PROFILE, Example, GenerateResult, Media, Post, Profile } from "@/lib/types";
 import { useAuth } from "@/lib/useAuth";
 
 const NAV = [
@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [media, setMedia] = useState<Media[]>([]);
   const [calendar, setCalendar] = useState<CalendarStatus | null>(null);
+  const [aiKey, setAiKey] = useState<AiKeyStatus>({ configured: false, last4: null });
   const [flash, setFlash] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [verifyBusy, setVerifyBusy] = useState(false);
 
@@ -50,18 +51,20 @@ export default function Dashboard() {
     }
     (async () => {
       try {
-        const [p, e, g, m, c] = await Promise.all([
+        const [p, e, g, m, c, k] = await Promise.all([
           api<Profile>("/profile"),
           api<Example[]>("/examples"),
           api<Post[]>("/posts"),
           api<Media[]>("/media"),
           api<CalendarStatus>("/calendar/status"),
+          api<AiKeyStatus>("/ai/key"),
         ]);
         setProfile(p);
         setExamples(e);
         setPosts(g);
         setMedia(m);
         setCalendar(c);
+        setAiKey(k);
       } catch (err) {
         notify("error", errorMessage(err));
       }
@@ -76,6 +79,12 @@ export default function Dashboard() {
       }
     })();
   }, [user, loading, router, notify]);
+
+  useEffect(() => {
+    const refresh = () => api<AiKeyStatus>("/ai/key").then(setAiKey).catch(() => undefined);
+    window.addEventListener(AI_KEY_PROBLEM, refresh);
+    return () => window.removeEventListener(AI_KEY_PROBLEM, refresh);
+  }, []);
 
   async function resendVerification() {
     setVerifyBusy(true);
@@ -135,6 +144,18 @@ export default function Dashboard() {
           </div>
         )}
 
+        {!aiKey.configured && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft p-4 text-base">
+            <p>
+              <span className="font-semibold">L&apos;IA est désactivée.</span> Ajoute ta clé RodiumAI pour générer des idées, analyser ton style et
+              rédiger tes posts.
+            </p>
+            <a href="#ia" className={btnGhost}>
+              Ajouter ma clé
+            </a>
+          </div>
+        )}
+
         {flash && (
           <div
             role={flash.type === "error" ? "alert" : "status"}
@@ -144,9 +165,9 @@ export default function Dashboard() {
           </div>
         )}
 
-        <ProfileSection profile={profile} onChange={setProfile} notify={notify} />
-        <StyleSection examples={examples} setExamples={setExamples} profile={profile} onProfile={setProfile} notify={notify} />
-        <PostsSection posts={posts} setPosts={setPosts} media={media} profile={profile} onGenerated={onGenerated} notify={notify} />
+        <ProfileSection profile={profile} onChange={setProfile} aiKey={aiKey} onAiKey={setAiKey} notify={notify} />
+        <StyleSection examples={examples} setExamples={setExamples} profile={profile} onProfile={setProfile} aiReady={aiKey.configured} notify={notify} />
+        <PostsSection posts={posts} setPosts={setPosts} media={media} profile={profile} aiReady={aiKey.configured} onGenerated={onGenerated} notify={notify} />
         <MediaSection media={media} setMedia={setMedia} notify={notify} />
         <CalendarSection status={calendar} setStatus={setCalendar} onSynced={() => reloadPosts().catch(() => undefined)} notify={notify} />
       </main>

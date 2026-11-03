@@ -1,4 +1,7 @@
-"""Client RodiumAI (API compatible OpenAI) : analyse de style, idées de thèmes, rédaction."""
+"""Client RodiumAI (API compatible OpenAI) : analyse de style, idées de thèmes, rédaction.
+
+Chaque appel utilise la clé RodiumAI de l'utilisateur (voir services/keys.py).
+"""
 import json
 import re
 from datetime import datetime, timezone
@@ -13,6 +16,14 @@ class AIError(Exception):
     pass
 
 
+class AIKeyMissing(AIError):
+    """L'utilisateur n'a pas (ou plus) de clé RodiumAI enregistrée."""
+
+
+class AIKeyRejected(AIError):
+    """RodiumAI a refusé la clé de l'utilisateur (invalide, révoquée…)."""
+
+
 SYSTEM = (
     "Tu es un expert de la rédaction de posts LinkedIn. Tu écris de façon naturelle, concrète et sans jargon creux. "
     "Tu n'utilises jamais d'emoji. Tu ne parles jamais de toi-même comme d'une IA."
@@ -23,11 +34,36 @@ _EMOJI = re.compile(
 )
 
 
-# Les modèles à raisonnement (Gemini 3.x) comptent leur réflexion dans max_tokens : on garde de la marge.
-def _chat(messages: list[dict], *, max_tokens: int = 4000, temperature: float = 0.8, json_mode: bool = False) -> str:
-    if not settings.rodium_api_key:
-        raise AIError("RodiumAI n'est pas configuré (RODIUM_API_KEY manquante).")
+def _base_url() -> str:
+    return settings.rodium_api_url.rstrip("/")
 
+
+def _raise_for_status(r: httpx.Response) -> None:
+    if r.status_code in (401, 403):
+        raise AIKeyRejected("RodiumAI a refusé ta clé. Vérifie-la dans ton profil.")
+    if r.status_code == 402:
+        raise AIError("Ton crédit RodiumAI est insuffisant. Recharge-le puis réessaie.")
+    if r.status_code == 429:
+        raise AIError("RodiumAI limite le nombre de requêtes. Réessaie dans un instant.")
+    if r.status_code >= 400:
+        raise AIError(f"RodiumAI a répondu {r.status_code} : {r.text[:300]}")
+
+
+def validate_key(api_key: str) -> None:
+    """Vérifie une clé avec un appel gratuit (liste des modèles)."""
+    try:
+        r = httpx.get(f"{_base_url()}/models", headers={"Authorization": f"Bearer {api_key}"}, timeout=20)
+    except httpx.HTTPError as exc:
+        raise AIError(f"RodiumAI injoignable : {exc}") from exc
+    if r.status_code in (401, 403):
+        raise AIKeyRejected("Cette clé n'est pas valide. Vérifie-la sur ton compte RodiumAI.")
+    _raise_for_status(r)
+
+
+# Les modèles à raisonnement (Gemini 3.x) comptent leur réflexion dans max_tokens : on garde de la marge.
+def _chat(
+    messages: list[dict], *, api_key: str, max_tokens: int = 4000, temperature: float = 0.8, json_mode: bool = False
+) -> str:
     payload: dict = {
         "model": settings.rodium_model,
         "messages": messages,
@@ -37,8 +73,8 @@ def _chat(messages: list[dict], *, max_tokens: int = 4000, temperature: float = 
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
 
-    url = f"{settings.rodium_api_url.rstrip('/')}/chat/completions"
-    headers = {"Authorization": f"Bearer {settings.rodium_api_key}"}
+    url = f"{_base_url()}/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}"}
 
     def call(body: dict) -> httpx.Response:
         try:
@@ -51,8 +87,7 @@ def _chat(messages: list[dict], *, max_tokens: int = 4000, temperature: float = 
         # Le modèle ne gère peut-être pas le mode JSON : on réessaie sans.
         payload.pop("response_format")
         r = call(payload)
-    if r.status_code >= 400:
-        raise AIError(f"RodiumAI a répondu {r.status_code} : {r.text[:300]}")
+    _raise_for_status(r)
 
     try:
         return (r.json()["choices"][0]["message"]["content"] or "").strip()
@@ -108,7 +143,7 @@ def _style_block(style: StyleAnalysis | None, examples: list[str]) -> str:
     return "\n\n".join(parts) or "Aucun exemple fourni : reste sur un style simple et direct."
 
 
-def analyze_style(profile: ProfileOut, examples: list[str]) -> StyleAnalysis:
+def analyze_style(profile: ProfileOut, examples: list[str], *, api_key: str) -> StyleAnalysis:
     if not examples:
         raise AIError("Ajoute au moins un post d'exemple pour analyser ton style.")
     shown = "\n\n---\n\n".join(examples[:10])
@@ -125,7 +160,7 @@ def analyze_style(profile: ProfileOut, examples: list[str]) -> StyleAnalysis:
     data = _parse_json(
         _chat(
             [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
-            max_tokens=4000,
+            api_key=api_key,
             temperature=0.3,
             json_mode=True,
         )
@@ -146,7 +181,7 @@ def analyze_style(profile: ProfileOut, examples: list[str]) -> StyleAnalysis:
     )
 
 
-def suggest_themes(profile: ProfileOut, count: int = 8) -> list[str]:
+def suggest_themes(profile: ProfileOut, *, api_key: str, count: int = 8) -> list[str]:
     prompt = (
         f"Propose {count} thèmes de posts LinkedIn pertinents et variés pour cet auteur.\n\n{_persona(profile)}\n"
         f"Thèmes déjà choisis (à ne pas répéter) : {', '.join(profile.themes) or 'aucun'}\n\n"
@@ -155,7 +190,7 @@ def suggest_themes(profile: ProfileOut, count: int = 8) -> list[str]:
     data = _parse_json(
         _chat(
             [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
-            max_tokens=4000,
+            api_key=api_key,
             temperature=0.9,
             json_mode=True,
         )
@@ -172,6 +207,7 @@ def generate_post(
     examples: list[str],
     theme: str,
     *,
+    api_key: str,
     style: StyleAnalysis | None = None,
     instruction: str = "",
     previous: str | None = None,
@@ -195,7 +231,7 @@ def generate_post(
     )
     text = _chat(
         [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
-        max_tokens=4000,
+        api_key=api_key,
         temperature=0.8,
     )
     text = strip_emojis(text).strip().strip('"').strip()

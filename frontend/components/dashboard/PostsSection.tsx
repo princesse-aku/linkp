@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api, errorMessage } from "@/lib/api";
 import type { GenerateResult, Media, Post, PostStatus, Profile } from "@/lib/types";
-import { Chip, Notify, Section, btnDark, btnGhost, btnPrimary, input } from "./ui";
+import { AiHint, Chip, Notify, Section, btnDark, btnGhost, btnPrimary, input } from "./ui";
 
 const STATUS: Record<PostStatus, string> = { draft: "Brouillon", scheduled: "Programmé", published: "Publié" };
 
@@ -15,12 +15,14 @@ function formatDate(iso: string | null) {
 function PostCard({
   post,
   media,
+  aiReady,
   onUpdate,
   onDelete,
   notify,
 }: {
   post: Post;
   media: Media[];
+  aiReady: boolean;
   onUpdate: (p: Post) => void;
   onDelete: (id: string) => void;
   notify: Notify;
@@ -168,7 +170,7 @@ function PostCard({
             <button type="button" onClick={() => setEditing(true)} className={btnGhost}>
               Modifier
             </button>
-            <button type="button" onClick={() => setRewriting((r) => !r)} className={btnGhost}>
+            <button type="button" onClick={() => setRewriting((r) => !r)} disabled={!aiReady} title={aiReady ? undefined : "Ajoute ta clé RodiumAI pour activer l'IA"} className={btnGhost}>
               Réécrire avec l&apos;IA
             </button>
             <button type="button" onClick={copy} className={btnGhost}>
@@ -211,6 +213,7 @@ export default function PostsSection({
   setPosts,
   media,
   profile,
+  aiReady,
   onGenerated,
   notify,
 }: {
@@ -218,6 +221,7 @@ export default function PostsSection({
   setPosts: (p: Post[]) => void;
   media: Media[];
   profile: Profile;
+  aiReady: boolean;
   onGenerated: (r: GenerateResult) => void;
   notify: Notify;
 }) {
@@ -241,11 +245,12 @@ export default function PostsSection({
   return (
     <Section id="posts" title="Tes posts programmés" hint="Génère tes posts sur la période choisie, puis relis, ajuste et publie.">
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={generate} disabled={busy || !ready} className={btnPrimary}>
+        <button type="button" onClick={generate} disabled={busy || !ready || !aiReady} className={btnPrimary}>
           {busy ? "Rédaction en cours (cela peut prendre une minute)…" : posts.length ? "Générer de nouveaux posts" : "Générer mes posts"}
         </button>
-        {!ready && <p className="text-base text-stone-500">Ajoute au moins un thème et une période pour générer.</p>}
+        {aiReady && !ready && <p className="text-base text-stone-500">Ajoute au moins un thème et une période pour générer.</p>}
       </div>
+      {!aiReady && <AiHint />}
 
       {posts.length === 0 ? (
         <p className="text-base text-stone-500">Aucun post pour le moment.</p>
@@ -256,6 +261,7 @@ export default function PostsSection({
               key={p.id}
               post={p}
               media={media}
+              aiReady={aiReady}
               notify={notify}
               onUpdate={(u) => setPosts(posts.map((x) => (x.id === u.id ? u : x)))}
               onDelete={(id) => setPosts(posts.filter((x) => x.id !== id))}

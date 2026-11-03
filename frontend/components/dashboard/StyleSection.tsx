@@ -3,19 +3,21 @@
 import { useState } from "react";
 import { api, errorMessage } from "@/lib/api";
 import type { Example, Profile, StyleAnalysis } from "@/lib/types";
-import { Chip, Notify, Section, btnDark, btnGhost, btnPrimary, input } from "./ui";
+import { AiHint, Chip, Notify, Section, btnDark, btnGhost, btnPrimary, input } from "./ui";
 
 export default function StyleSection({
   examples,
   setExamples,
   profile,
   onProfile,
+  aiReady,
   notify,
 }: {
   examples: Example[];
   setExamples: (e: Example[]) => void;
   profile: Profile;
   onProfile: (p: Profile) => void;
+  aiReady: boolean;
   notify: Notify;
 }) {
   const [text, setText] = useState("");
@@ -85,10 +87,11 @@ export default function StyleSection({
         <div className="rounded-xl bg-cream p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="font-serif text-xl font-medium">Analyse de ton style</p>
-            <button type="button" onClick={analyze} disabled={busy !== ""} className={analysis ? btnGhost : btnPrimary}>
+            <button type="button" onClick={analyze} disabled={busy !== "" || !aiReady} className={analysis ? btnGhost : btnPrimary}>
               {busy === "analyze" ? "Analyse en cours…" : analysis ? "Relancer l'analyse" : "Analyser mon style"}
             </button>
           </div>
+          {!aiReady && <div className="mt-3"><AiHint /></div>}
           {outdated && <p className="mt-3 text-base text-accent-dark">Tes exemples ont changé depuis la dernière analyse.</p>}
           {analysis && (
             <dl className="mt-4 space-y-3 text-base">

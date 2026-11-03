@@ -50,10 +50,11 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       if (signup) {
         await createUserWithEmailAndPassword(firebaseAuth(), email, password);
         await welcome();
+        router.push("/onboarding");
       } else {
         await signInWithEmailAndPassword(firebaseAuth(), email, password);
+        router.push("/dashboard");
       }
-      router.push("/dashboard");
     } catch (err) {
       setError(readable(err));
       setBusy(false);
@@ -65,8 +66,9 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
     setBusy(true);
     try {
       const result = await signInWithPopup(firebaseAuth(), new GoogleAuthProvider());
-      if (getAdditionalUserInfo(result)?.isNewUser) await welcome();
-      router.push("/dashboard");
+      const isNew = getAdditionalUserInfo(result)?.isNewUser;
+      if (isNew) await welcome();
+      router.push(isNew ? "/onboarding" : "/dashboard");
     } catch (err) {
       setError(readable(err));
       setBusy(false);

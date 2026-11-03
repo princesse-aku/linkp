@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import AiKeyForm from "@/components/AiKeyForm";
 import { api, errorMessage } from "@/lib/api";
-import type { Profile } from "@/lib/types";
-import { Notify, Section, btnDark, btnGhost, btnPrimary, input } from "./ui";
+import type { AiKeyStatus, Profile } from "@/lib/types";
+import { AiHint, Notify, Section, btnDark, btnGhost, btnPrimary, input } from "./ui";
 
 const TONES = ["Professionnel", "Inspirant", "Humoristique", "Storytelling", "Pédagogue", "Direct", "Bienveillant", "Provocateur"];
 
@@ -23,10 +24,14 @@ const TIMEZONES = [
 export default function ProfileSection({
   profile,
   onChange,
+  aiKey,
+  onAiKey,
   notify,
 }: {
   profile: Profile;
   onChange: (p: Profile) => void;
+  aiKey: AiKeyStatus;
+  onAiKey: (s: AiKeyStatus) => void;
   notify: Notify;
 }) {
   const [themeInput, setThemeInput] = useState("");
@@ -70,6 +75,23 @@ export default function ProfileSection({
 
   return (
     <>
+      <Section
+        id="ia"
+        title="Ta clé RodiumAI"
+        hint="LinkP écrit avec RodiumAI. Utilise ta propre clé : elle est vérifiée, chiffrée, et tu gères ta consommation chez RodiumAI."
+      >
+        <AiKeyForm status={aiKey} onChange={onAiKey} />
+        {!aiKey.configured && (
+          <p className="text-base text-stone-500">
+            Pas encore de clé ?{" "}
+            <a href="https://www.rodiumai.io/docs" target="_blank" rel="noopener noreferrer" className="font-medium text-accent underline">
+              Consulte la documentation RodiumAI
+            </a>
+            .
+          </p>
+        )}
+      </Section>
+
       <Section id="profil" title="Tes informations" hint="Ces infos aident à personnaliser tes posts.">
         <div className="grid gap-4 sm:grid-cols-2">
           <input className={input} placeholder="Nom complet" value={profile.full_name} onChange={(e) => set("full_name", e.target.value)} />
@@ -132,9 +154,10 @@ export default function ProfileSection({
             </span>
           ))}
         </div>
-        <button type="button" onClick={suggest} disabled={busy !== ""} className={btnGhost}>
+        <button type="button" onClick={suggest} disabled={busy !== "" || !aiKey.configured} className={btnGhost}>
           {busy === "suggest" ? "Recherche d'idées…" : "Me proposer des thèmes avec l'IA"}
         </button>
+        {!aiKey.configured && <AiHint />}
         {suggestions.length > 0 && (
           <div>
             <p className="text-base text-stone-500">Clique pour ajouter :</p>

@@ -35,3 +35,15 @@ export function Chip({ children, tone = "accent" }: { children: React.ReactNode;
   };
   return <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm ${styles[tone]}`}>{children}</span>;
 }
+
+export function AiHint() {
+  return (
+    <p className="text-base text-stone-500">
+      Cette action utilise l&apos;IA.{" "}
+      <a href="#ia" className="font-medium text-accent underline">
+        Ajoute ta clé RodiumAI
+      </a>{" "}
+      pour l&apos;activer.
+    </p>
+  );
+}

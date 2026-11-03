@@ -125,7 +125,7 @@ def test_calendar_callback_stores_tokens_and_connects(client, user, monkeypatch)
     assert client.get("/api/calendar/status", headers=user["headers"]).json()["connected"] is True
 
 
-def test_posts_get_calendar_events_when_connected(client, user, monkeypatch):
+def test_posts_get_calendar_events_when_connected(client, user, ai_key, monkeypatch):
     from app.services import ai
 
     monkeypatch.setattr(ai, "generate_post", lambda *a, **k: "Un post")

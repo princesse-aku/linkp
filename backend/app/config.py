@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:3000"
     backend_public_url: str = "http://localhost:8000"
     secret_key: str = "dev-secret-change-me-dev-secret-change-me"  # signe l'état OAuth Google
+    # Chiffre les clés RodiumAI des utilisateurs (clé Fernet). Obligatoire en production.
+    encryption_key: str = ""
 
     # Firebase : en dev, les SDK lisent FIRESTORE_EMULATOR_HOST et FIREBASE_AUTH_EMULATOR_HOST.
     firebase_project_id: str = "demo-linkp"
@@ -25,9 +27,8 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_starttls: bool = False
 
-    # RodiumAI (compatible OpenAI)
+    # RodiumAI (compatible OpenAI) : chaque utilisateur apporte sa propre clé, le serveur n'en a pas.
     rodium_api_url: str = "https://api.rodiumai.io/v1"
-    rodium_api_key: str = ""
     rodium_model: str = "google/gemini-3.8-flash"
 
     # Google Agenda (OAuth)

@@ -133,3 +133,20 @@ class CalendarStatus(BaseModel):
 
 class PasswordResetIn(BaseModel):
     email: str = Field(max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class AiKeyIn(BaseModel):
+    api_key: str = Field(min_length=10, max_length=300)
+
+    @field_validator("api_key")
+    @classmethod
+    def _format(cls, v: str) -> str:
+        v = v.strip()
+        if not v.startswith("rd_sk_") or any(c.isspace() for c in v):
+            raise ValueError("Une clé RodiumAI commence par « rd_sk_ ».")
+        return v
+
+
+class AiKeyStatus(BaseModel):
+    configured: bool
+    last4: str | None = None

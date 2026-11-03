@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist } from "next/font/google";
+import { SITE } from "@/lib/site";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -13,20 +14,34 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const description =
-  "Fini la page blanche : LinkP te propose des idées et rédige tes posts LinkedIn dans ton style, programmés sur la période de ton choix.";
-
+// Valeurs par défaut pour tout le site. Chaque page précise son titre, sa description et son adresse canonique
+// (voir pageMeta dans lib/site.ts). Icônes, manifeste et image de partage viennent des fichiers du dossier app/.
 export const metadata: Metadata = {
-  title: "LinkP — Tes posts LinkedIn, dans ta voix",
-  description,
-  openGraph: {
-    title: "LinkP — Tes posts LinkedIn, dans ta voix",
-    description,
-    type: "website",
-    locale: "fr_FR",
-    siteName: "LinkP",
+  metadataBase: new URL(SITE.url),
+  title: { default: SITE.title, template: `%s | ${SITE.name}` },
+  description: SITE.description,
+  applicationName: SITE.name,
+  keywords: [...SITE.keywords],
+  authors: [{ name: SITE.author.name, url: SITE.author.url }],
+  creator: SITE.author.name,
+  publisher: SITE.name,
+  category: "technology",
+  formatDetection: { telephone: false, email: false, address: false },
+  openGraph: { type: "website", siteName: SITE.name, locale: SITE.locale, title: SITE.title, description: SITE.description },
+  twitter: { card: "summary_large_image", title: SITE.title, description: SITE.description },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
   },
-  twitter: { card: "summary_large_image", title: "LinkP — Tes posts LinkedIn, dans ta voix", description },
+  appleWebApp: { capable: true, title: SITE.name, statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: SITE.themeColor,
+  colorScheme: "light",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

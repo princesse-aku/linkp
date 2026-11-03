@@ -20,16 +20,16 @@ def list_media(user: AuthUser = Depends(current_user)):
 
 
 @router.post("", response_model=MediaOut, status_code=201)
-async def upload_media(file: UploadFile = File(...), user: AuthUser = Depends(current_user)):
+def upload_media(file: UploadFile = File(...), user: AuthUser = Depends(current_user)):
+    # Route synchrone : FastAPI l'exécute dans un thread, l'envoi vers Cloudinary ne bloque donc pas les autres requêtes.
     load_profile(user.uid, user.email)
     limit = settings.max_upload_mb * 1024 * 1024
-    data = await file.read(limit + 1)  # on ne charge jamais plus que la limite
+    data = file.file.read(limit + 1)  # on ne charge jamais plus que la limite
     try:
         media_svc.validate(file.content_type, len(data))
         uploaded = media_svc.upload(user.uid, data, file.filename or "fichier", file.content_type or "")
     except media_svc.MediaError as exc:
-        status = 503 if "configuré" in str(exc) else 400 if "Format" in str(exc) or "volumineux" in str(exc) else 502
-        raise HTTPException(status, str(exc))
+        raise HTTPException(media_svc.http_status(exc), str(exc))
     return _out(media_svc.register(user.uid, uploaded, file.filename or ""))
 
 

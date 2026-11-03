@@ -73,7 +73,7 @@ export function ImageThumb({
         download
         aria-label={`Télécharger ${name}`}
         title="Télécharger"
-        className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-md bg-white/90 text-ink opacity-0 shadow transition hover:bg-white focus:opacity-100 group-hover:opacity-100"
+        className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-md bg-white/90 text-ink opacity-0 shadow transition hover:bg-white focus:opacity-100 group-hover:opacity-100 pointer-coarse:h-10 pointer-coarse:w-10 pointer-coarse:opacity-100"
       >
         <IconDownload className="h-4 w-4" />
       </a>

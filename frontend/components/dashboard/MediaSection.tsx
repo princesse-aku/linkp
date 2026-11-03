@@ -72,7 +72,7 @@ export default function MediaSection({
       {media.length === 0 ? (
         <p className="text-base text-stone-500">Aucun fichier pour le moment.</p>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-3">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
           {media.map((m) => (
             <li key={m.id} className="overflow-hidden rounded-lg border border-stone-200">
               <ImageThumb
@@ -87,13 +87,13 @@ export default function MediaSection({
                   {m.filename || "Fichier"}
                 </p>
                 <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  <a href={downloadUrl(m.url, label(m))} download className="font-medium text-accent">
+                  <a href={downloadUrl(m.url, label(m))} download className="inline-flex min-h-10 items-center font-medium text-accent">
                     Télécharger
                   </a>
-                  <button type="button" onClick={() => copy(m.url)} className="font-medium text-accent">
+                  <button type="button" onClick={() => copy(m.url)} className="inline-flex min-h-10 items-center font-medium text-accent">
                     Copier le lien
                   </button>
-                  <button type="button" onClick={() => remove(m.id)} className="font-medium text-red-600">
+                  <button type="button" onClick={() => remove(m.id)} className="inline-flex min-h-10 items-center font-medium text-red-600">
                     Supprimer
                   </button>
                 </div>

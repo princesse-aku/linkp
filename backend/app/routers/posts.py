@@ -4,10 +4,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
 from ..auth import AuthUser, current_user
+from ..config import settings
 from ..schemas import (
     CalendarSyncResult,
     GenerateIn,
@@ -319,7 +320,8 @@ def regenerate(post_id: str, body: PostRegenerate, user: AuthUser = Depends(curr
 
 
 MAX_MEDIA_PER_POST = 10
-_EXTENSIONS = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
+_EXTENSIONS = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif"}
+IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}  # un post n'accepte que des images (pas de PDF)
 
 
 @router.post("/posts/{post_id}/image", response_model=PostImageOut)
@@ -343,6 +345,37 @@ def generate_post_image(post_id: str, body: PostImageIn | None = None, user: Aut
         uploaded = media_svc.upload(user.uid, data, filename, content_type)
     except media_svc.MediaError as exc:
         raise HTTPException(502, str(exc))
+    doc = media_svc.register(user.uid, uploaded, filename)
+
+    urls = [*(post.get("media_urls") or []), doc["url"]]
+    ref.update({"media_urls": urls, "updated_at": now()})
+    post["media_urls"] = urls
+    return PostImageOut(post=_out(post), media=MediaOut.model_validate(doc))
+
+
+@router.post("/posts/{post_id}/media", response_model=PostImageOut)
+def upload_post_image(post_id: str, file: UploadFile = File(...), user: AuthUser = Depends(current_user)):
+    """Importe une image choisie par l'utilisateur : Cloudinary, médiathèque, puis jointe au post."""
+    ref, post = _get(user.uid, post_id)
+    if len(post.get("media_urls") or []) >= MAX_MEDIA_PER_POST:
+        raise HTTPException(409, f"Ce post a déjà {MAX_MEDIA_PER_POST} fichiers joints.")
+    try:
+        media_svc.ensure_configured()
+    except media_svc.MediaError as exc:
+        raise HTTPException(media_svc.http_status(exc), str(exc))
+    if file.content_type not in IMAGE_TYPES:
+        raise HTTPException(400, "Format non pris en charge (JPEG, PNG, WebP ou GIF).")
+
+    limit = settings.max_upload_mb * 1024 * 1024
+    data = file.file.read(limit + 1)  # on ne charge jamais plus que la limite
+    if not data:
+        raise HTTPException(400, "Le fichier est vide.")
+    filename = file.filename or f"post-{post_id}.{_EXTENSIONS[file.content_type]}"
+    try:
+        media_svc.validate(file.content_type, len(data))
+        uploaded = media_svc.upload(user.uid, data, filename, file.content_type)
+    except media_svc.MediaError as exc:
+        raise HTTPException(media_svc.http_status(exc), str(exc))
     doc = media_svc.register(user.uid, uploaded, filename)
 
     urls = [*(post.get("media_urls") or []), doc["url"]]

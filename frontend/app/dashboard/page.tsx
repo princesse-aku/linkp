@@ -60,7 +60,7 @@ export default function DashboardHome() {
             )}
           </p>
         </div>
-        <Link href="/dashboard/posts" className="inline-flex h-11 items-center rounded-full border border-stone-300 bg-white px-5 text-base font-semibold hover:bg-stone-50">
+        <Link href="/dashboard/posts" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-stone-300 bg-white px-5 text-base font-semibold hover:bg-stone-50 sm:w-auto">
           Voir en liste
         </Link>
       </section>

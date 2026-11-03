@@ -26,7 +26,8 @@ class AIKeyRejected(AIError):
 
 SYSTEM = (
     "Tu es un expert de la rédaction de posts LinkedIn. Tu écris de façon naturelle, concrète et sans jargon creux. "
-    "Tu n'utilises jamais d'emoji. Tu ne parles jamais de toi-même comme d'une IA."
+    "Tu n'utilises jamais d'emoji. Tu n'utilises jamais de tiret long (— ou –) : à la place, une virgule, "
+    "un deux-points ou un point. Tu ne parles jamais de toi-même comme d'une IA."
 )
 
 _EMOJI = re.compile(
@@ -113,6 +114,18 @@ def strip_emojis(text: str) -> str:
     return _EMOJI.sub("", text).strip()
 
 
+def strip_dashes(text: str) -> str:
+    """Remplace les tirets longs (— et –), signe typique d'un texte écrit par une IA."""
+    text = re.sub(r"(?m)^[ \t]*[—–][ \t]*", "- ", text)  # puce en début de ligne
+    text = re.sub(r"(?<=\d)[ \t]*[—–][ \t]*(?=\d)", "-", text)  # 2020–2024 -> 2020-2024
+    return re.sub(r"[ \t]*[—–][ \t]*", ", ", text)  # incise : « idée — mot » -> « idée, mot »
+
+
+def clean(text: str) -> str:
+    """Nettoyage commun de tout texte généré : ni emoji, ni tiret long."""
+    return strip_dashes(strip_emojis(text)).strip()
+
+
 def _persona(profile: ProfileOut) -> str:
     lines = [
         f"Nom : {profile.full_name or 'non précisé'}",
@@ -167,13 +180,13 @@ def analyze_style(profile: ProfileOut, examples: list[str], *, api_key: str) -> 
     )
 
     def as_list(v) -> list[str]:
-        return [str(x) for x in v][:10] if isinstance(v, list) else []
+        return [clean(str(x)) for x in v][:10] if isinstance(v, list) else []
 
     return StyleAnalysis(
-        summary=str(data.get("summary", ""))[:600],
+        summary=clean(str(data.get("summary", "")))[:600],
         tone_keywords=as_list(data.get("tone_keywords")),
-        typical_length=str(data.get("typical_length", ""))[:200],
-        structure=str(data.get("structure", ""))[:300],
+        typical_length=clean(str(data.get("typical_length", "")))[:200],
+        structure=clean(str(data.get("structure", "")))[:300],
         vocabulary=as_list(data.get("vocabulary")),
         avoid=as_list(data.get("avoid")),
         examples_count=len(examples),
@@ -199,7 +212,8 @@ def suggest_themes(profile: ProfileOut, *, api_key: str, count: int = 8) -> list
     if not isinstance(themes, list):
         raise AIError("L'IA n'a pas proposé de thèmes.")
     taken = {t.lower() for t in profile.themes}
-    return [str(t).strip() for t in themes if str(t).strip() and str(t).strip().lower() not in taken][:count]
+    cleaned = [clean(str(t)) for t in themes]
+    return [t for t in cleaned if t and t.lower() not in taken][:count]
 
 
 def generate_post(
@@ -234,7 +248,7 @@ def generate_post(
         api_key=api_key,
         temperature=0.8,
     )
-    text = strip_emojis(text).strip().strip('"').strip()
+    text = clean(text).strip('"').strip()
     if not text:
         raise AIError("L'IA a renvoyé un post vide.")
     return text

@@ -153,7 +153,12 @@ export default function ProfileSection({
           {profile.themes.map((t) => (
             <span key={t} className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-base text-accent-dark">
               {t}
-              <button type="button" aria-label={`Retirer ${t}`} onClick={() => set("themes", profile.themes.filter((x) => x !== t))}>
+              <button
+                type="button"
+                aria-label={`Retirer ${t}`}
+                className="-mr-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full text-lg leading-none hover:bg-white/70"
+                onClick={() => set("themes", profile.themes.filter((x) => x !== t))}
+              >
                 ×
               </button>
             </span>

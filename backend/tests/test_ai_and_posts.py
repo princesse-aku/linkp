@@ -127,6 +127,31 @@ def test_ai_failure_is_reported_as_502(client, user, ai_key, monkeypatch):
     assert client.get("/api/posts", headers=user["headers"]).json() == []
 
 
+def test_strip_dashes():
+    from app.services.ai import clean, strip_dashes
+
+    assert strip_dashes("Le leadership — c'est écouter") == "Le leadership, c'est écouter"
+    assert strip_dashes("Un point – et un autre") == "Un point, et un autre"
+    assert strip_dashes("De 2020–2024") == "De 2020-2024"
+    assert strip_dashes("— première idée\n– seconde idée") == "- première idée\n- seconde idée"
+    assert strip_dashes("Un trait-d'union reste, tout comme le - simple") == "Un trait-d'union reste, tout comme le - simple"
+    assert clean("Bravo 👏 — à toi") == "Bravo, à toi"
+
+
+def test_generated_text_never_contains_long_dashes(monkeypatch):
+    """Même si le modèle en glisse, ni le post ni les idées de thèmes n'en contiennent."""
+    from app.schemas import ProfileOut
+    from app.services import ai
+
+    monkeypatch.setattr(ai, "_chat", lambda *a, **k: "Mon idée — la meilleure.\n\nEt voilà – fin.")
+    post = ai.generate_post(ProfileOut(), [], "IA", api_key="k")
+    assert "—" not in post and "–" not in post
+
+    monkeypatch.setattr(ai, "_chat", lambda *a, **k: '{"themes": ["IA — avenir", "Management – équipes"]}')
+    themes = ai.suggest_themes(ProfileOut(), api_key="k")
+    assert themes == ["IA, avenir", "Management, équipes"]
+
+
 def test_strip_emojis():
     from app.services.ai import strip_emojis
 

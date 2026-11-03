@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AiKeyForm from "@/components/AiKeyForm";
-import Logo from "@/components/Logo";
+import AuthShell from "@/components/auth/AuthShell";
+import { IconCheck } from "@/components/Icons";
 import { api } from "@/lib/api";
 import type { AiKeyStatus } from "@/lib/types";
 import { useAuth } from "@/lib/useAuth";
@@ -29,41 +30,45 @@ export default function OnboardingPage() {
   if (loading || !user || !status) return <p className="p-10 text-center text-stone-500">Chargement…</p>;
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-16">
-      <div className="w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
-        <Logo />
-        <p className="mt-6 text-sm font-semibold uppercase tracking-[0.18em] text-accent">Dernière étape</p>
-        <h1 className="mt-2 font-serif text-3xl font-medium leading-tight">Branche ton IA pour écrire tes posts</h1>
-        <p className="mt-4 text-base leading-relaxed text-stone-600">
-          LinkP rédige tes posts avec RodiumAI. Tu utilises ta propre clé API : tu gardes la main sur ta consommation, directement sur ton
-          compte RodiumAI.
-        </p>
-
-        <ul className="mt-5 space-y-2 text-base text-stone-700">
-          <li>Ta clé est vérifiée, puis chiffrée sur nos serveurs.</li>
-          <li>Elle n&apos;est jamais affichée en entier ni partagée.</li>
-          <li>Tu peux la remplacer ou la supprimer à tout moment.</li>
-        </ul>
-
-        <div className="mt-7">
-          <AiKeyForm status={status} onChange={setStatus} onSaved={() => router.push("/dashboard")} />
-        </div>
-
-        <p className="mt-3 text-base text-stone-500">
-          Pas encore de clé ?{" "}
-          <a href="https://www.rodiumai.io/docs" target="_blank" rel="noopener noreferrer" className="font-medium text-accent underline">
-            Consulte la documentation RodiumAI
-          </a>
-          .
-        </p>
-
-        <div className="mt-8 border-t border-stone-200 pt-5 text-center">
-          <Link href="/dashboard" className="text-base font-medium text-stone-600 hover:text-ink">
+    <AuthShell
+      art="onboarding"
+      wide
+      eyebrow="Dernière étape"
+      title={
+        <>
+          Branche ton IA pour <em>écrire tes posts</em>
+        </>
+      }
+      subtitle="LinkP rédige tes posts avec RodiumAI. Tu utilises ta propre clé API : tu gardes la main sur ta consommation, directement sur ton compte RodiumAI."
+      footer={
+        <>
+          <Link href="/dashboard" className="font-semibold text-stone-700 hover:text-ink">
             Ignorer pour l&apos;instant
           </Link>
           <p className="mt-1 text-sm text-stone-500">Tu pourras l&apos;ajouter plus tard depuis ton profil.</p>
-        </div>
-      </div>
-    </main>
+        </>
+      }
+    >
+      <ul className="mb-7 space-y-2.5 text-base text-stone-700">
+        {["Ta clé est vérifiée, puis chiffrée sur nos serveurs.", "Elle n'est jamais affichée en entier ni partagée.", "Tu peux la remplacer ou la supprimer à tout moment."].map((t) => (
+          <li key={t} className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-dark">
+              <IconCheck className="h-3.5 w-3.5" />
+            </span>
+            {t}
+          </li>
+        ))}
+      </ul>
+
+      <AiKeyForm status={status} onChange={setStatus} onSaved={() => router.push("/dashboard")} />
+
+      <p className="mt-4 text-base text-stone-500">
+        Pas encore de clé ?{" "}
+        <a href="https://www.rodiumai.io/docs" target="_blank" rel="noopener noreferrer" className="font-medium text-accent underline">
+          Consulte la documentation RodiumAI
+        </a>
+        .
+      </p>
+    </AuthShell>
   );
 }

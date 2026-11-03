@@ -30,6 +30,16 @@ def _configure() -> None:
     )
 
 
+def http_status(exc: "MediaError") -> int:
+    """Code HTTP adapté à l'erreur : 503 non configuré, 400 fichier refusé, 502 échec Cloudinary."""
+    text = str(exc)
+    if "configuré" in text:
+        return 503
+    if "Format" in text or "volumineux" in text:
+        return 400
+    return 502
+
+
 def ensure_configured() -> None:
     """Vérifie Cloudinary avant une action coûteuse (ex. génération d'image payante)."""
     _configure()

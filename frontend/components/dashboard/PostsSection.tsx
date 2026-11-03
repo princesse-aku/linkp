@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   IconCalendar,
   IconCheck,
@@ -13,6 +13,7 @@ import {
   IconPen,
   IconSpark,
   IconTrash,
+  IconUpload,
 } from "@/components/Icons";
 import { ImageThumb, type ViewerImage, isPdf, slug, useImageViewer } from "@/components/ImageViewer";
 import { api, errorMessage } from "@/lib/api";
@@ -87,7 +88,7 @@ function IconButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border bg-white transition hover:-translate-y-px disabled:pointer-events-none disabled:opacity-50 ${
+      className={`inline-flex h-11 w-11 items-center justify-center rounded-lg border bg-white sm:h-10 sm:w-10 transition hover:-translate-y-px disabled:pointer-events-none disabled:opacity-50 ${
         danger ? "border-red-200 text-red-600 hover:bg-red-50" : "border-stone-300 text-stone-700 hover:bg-stone-50"
       }`}
     >
@@ -124,7 +125,9 @@ export function PostCard({
   const [rewriting, setRewriting] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
-  const [imageBusy, setImageBusy] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false); // génération par l'IA en cours
+  const [uploadBusy, setUploadBusy] = useState(false); // import d'un fichier en cours
+  const fileRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
   const [draft, setDraft] = useState({
     content: post.content,
@@ -209,6 +212,34 @@ export function PostCard({
     setImageBusy(false);
   }
 
+  // Import d'une image choisie par l'utilisateur (alternative à la génération par l'IA).
+  async function uploadImage(file: File | undefined) {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+      notify("error", "Format non pris en charge : choisis une image JPEG, PNG, WebP ou GIF.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      notify("error", "Image trop volumineuse (10 Mo maximum).");
+      return;
+    }
+    setUploadBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const result = await api<PostImageResult>(`/posts/${post.id}/media`, { method: "POST", body: form });
+      onUpdate(result.post);
+      onMedia(result.media);
+      setDraft((d) => ({ ...d, media_urls: result.post.media_urls }));
+      notify("ok", "Image ajoutée au post.");
+    } catch (err) {
+      notify("error", errorMessage(err));
+    }
+    setUploadBusy(false);
+  }
+
+  const imageWorking = imageBusy || uploadBusy;
+
   const toggleMedia = (url: string) =>
     setDraft((d) => ({
       ...d,
@@ -236,7 +267,7 @@ export function PostCard({
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
-          className="mt-2 inline-flex items-center gap-1 text-base font-medium text-accent hover:underline"
+          className="mt-1 inline-flex min-h-11 items-center gap-1 text-base font-medium text-accent hover:underline sm:mt-2 sm:min-h-0"
         >
           {open ? "Voir moins" : "Voir plus"}
           <IconChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -246,10 +277,10 @@ export function PostCard({
   );
 
   const imageSkeleton = (cls: string) => (
-    <div className={`skeleton flex items-center justify-center ${cls}`} role="status" aria-label="Création de l'image en cours">
+    <div className={`skeleton flex items-center justify-center ${cls}`} role="status" aria-label={uploadBusy ? "Envoi de l'image en cours" : "Création de l'image en cours"}>
       <span className="relative z-10 inline-flex items-center gap-2 text-sm font-medium text-stone-600">
         <IconImage className="h-5 w-5 animate-pulse text-accent" />
-        Création de l&apos;image…
+        {uploadBusy ? "Envoi de l'image…" : "Création de l'image…"}
       </span>
     </div>
   );
@@ -259,12 +290,33 @@ export function PostCard({
       <button
         type="button"
         onClick={generateImage}
-        disabled={imageBusy || !aiReady}
+        disabled={imageWorking || !aiReady}
         title={aiReady ? "Créer une image professionnelle pour ce post" : "Ajoute ta clé RodiumAI pour activer l'IA"}
-        className="inline-flex h-10 items-center gap-2 rounded-lg border border-accent/40 bg-accent-soft/50 px-4 text-base font-medium text-accent-dark transition hover:bg-accent-soft disabled:pointer-events-none disabled:opacity-50"
+        className="inline-flex h-11 items-center sm:h-10 gap-2 rounded-lg border border-accent/40 bg-accent-soft/50 px-4 text-base font-medium text-accent-dark transition hover:bg-accent-soft disabled:pointer-events-none disabled:opacity-50"
       >
         <IconImage className="h-5 w-5" />
         {imageBusy ? "Création…" : "Générer une image"}
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        hidden
+        onChange={(e) => {
+          void uploadImage(e.target.files?.[0]);
+          e.target.value = ""; // permet de réimporter le même fichier
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={imageWorking}
+        aria-label="Importer une image depuis ton appareil"
+        title="Importer une image depuis ton appareil (JPEG, PNG, WebP ou GIF, 10 Mo max)"
+        className="inline-flex h-11 items-center sm:h-10 gap-2 rounded-lg border border-stone-300 bg-white px-4 text-base font-medium text-stone-700 transition hover:bg-stone-50 disabled:pointer-events-none disabled:opacity-50"
+      >
+        <IconUpload className="h-5 w-5" />
+        {uploadBusy ? "Envoi…" : "Importer"}
       </button>
       <IconButton label={copied ? "Copié" : "Copier le texte"} onClick={copy}>
         {copied ? <IconCheck className="h-5 w-5 text-forest" /> : <IconCopy />}
@@ -286,7 +338,7 @@ export function PostCard({
           type="button"
           disabled={busy}
           onClick={() => run(() => patch({ status: post.status === "published" ? "draft" : "published" }))}
-          className="inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-base font-medium text-forest hover:bg-forest/10 disabled:opacity-50"
+          className="inline-flex h-11 items-center sm:h-10 gap-1.5 rounded-lg px-3 text-base font-medium text-forest hover:bg-forest/10 disabled:opacity-50"
         >
           <IconCheck className="h-4 w-4" />
           {post.status === "published" ? "Remettre en brouillon" : "Marquer publié"}
@@ -358,7 +410,7 @@ export function PostCard({
 
   const offset = grid ? 1 : 0; // en grille, la première image est la bannière
   const rest = images.slice(offset);
-  const gallery = (rest.length > 0 || (imageBusy && !grid)) && (
+  const gallery = (rest.length > 0 || (imageWorking && !grid)) && (
     <div className="mt-3 flex flex-wrap gap-2">
       {rest.map((u, i) => (
         <ImageThumb
@@ -369,7 +421,7 @@ export function PostCard({
           onOpen={() => viewer.open(viewerImages, i + offset)}
         />
       ))}
-      {imageBusy && !grid && imageSkeleton("h-16 w-40 rounded-lg")}
+      {imageWorking && !grid && imageSkeleton("h-16 w-40 rounded-lg")}
     </div>
   );
 
@@ -379,7 +431,7 @@ export function PostCard({
   if (grid) {
     return (
       <li className={`${cardBase} flex flex-col overflow-hidden ${editing || rewriting ? "md:col-span-2" : ""}`}>
-        {imageBusy ? (
+        {imageWorking ? (
           imageSkeleton("aspect-[3/2] w-full rounded-none")
         ) : images[0] ? (
           <ImageThumb
@@ -608,7 +660,7 @@ export default function PostsSection() {
                 aria-label={`Vue ${label.toLowerCase()}`}
                 title={`Vue ${label.toLowerCase()}`}
                 onClick={() => changeView(value)}
-                className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-base font-medium transition ${
+                className={`inline-flex items-center gap-2 rounded-md px-3 py-2.5 text-base font-medium transition sm:py-1.5 ${
                   view === value ? "bg-ink text-white" : "text-stone-600 hover:bg-stone-100"
                 }`}
               >
@@ -623,7 +675,7 @@ export default function PostsSection() {
       {items.length === 0 ? (
         <p className="text-base text-stone-500">{posts.length > 0 ? "Aucun post dans cette catégorie." : "Aucun post pour le moment."}</p>
       ) : (
-        <ul className={view === "grid" ? "grid items-start gap-5 md:grid-cols-2" : "space-y-4"}>
+        <ul className={view === "grid" ? "grid items-start gap-5 md:grid-cols-2 xl:grid-cols-3" : "space-y-4"}>
           {items.map((item) => {
             if (item.post) {
               return (

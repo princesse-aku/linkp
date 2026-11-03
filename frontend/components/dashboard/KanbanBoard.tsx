@@ -68,7 +68,7 @@ function KanbanCard({
         <img src={cover} alt="" loading="lazy" draggable={false} className="mb-3 h-28 w-full rounded-lg object-cover" />
       )}
       <div className="flex items-start justify-between gap-2">
-        <button type="button" onClick={() => openPost(post.id)} className="min-w-0 text-left font-serif text-lg font-medium leading-snug hover:text-accent">
+        <button type="button" onClick={() => openPost(post.id)} className="min-w-0 py-1 text-left font-serif text-lg font-medium leading-snug hover:text-accent">
           {post.theme || "Sans thème"}
         </button>
         <DateBadge iso={post.scheduled_for} />
@@ -100,11 +100,11 @@ function KanbanCard({
           onClick={copy}
           aria-label="Copier le texte"
           title="Copier le texte"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-50"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-50 sm:h-9 sm:w-9"
         >
           <IconCopy className="h-4 w-4" />
         </button>
-        <button type="button" onClick={() => openPost(post.id)} className="h-9 rounded-lg border border-stone-300 px-3 text-sm font-medium hover:bg-stone-50">
+        <button type="button" onClick={() => openPost(post.id)} className="h-11 shrink-0 rounded-lg border border-stone-300 px-3 text-sm font-medium hover:bg-stone-50 sm:h-9">
           Ouvrir
         </button>
         {/* Alternative accessible (clavier, tactile) au glisser-déposer */}
@@ -113,7 +113,7 @@ function KanbanCard({
           onChange={(e) => movePost(post.id, e.target.value as PostStatus)}
           aria-label="Changer le statut"
           title="Changer le statut"
-          className="ml-auto h-9 rounded-lg border border-stone-300 bg-white py-1 pl-2 pr-6 text-sm"
+          className="ml-auto h-11 min-w-0 rounded-lg border border-stone-300 bg-white py-1 pl-2 pr-6 text-sm sm:h-9"
         >
           {(Object.keys(STATUS_LABEL) as PostStatus[]).map((s) => (
             <option key={s} value={s}>
@@ -179,7 +179,7 @@ export default function KanbanBoard() {
   const [over, setOver] = useState<PostStatus | null>(null);
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-3 lg:grid lg:grid-cols-3 lg:overflow-visible">
+    <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0 sm:scroll-px-0 lg:grid lg:grid-cols-3 lg:overflow-visible">
       {COLUMNS.map((col) => {
         const cards = posts.filter((p) => p.status === col.status).sort((a, b) => (a.scheduled_for ?? "9999").localeCompare(b.scheduled_for ?? "9999"));
         const slots = col.status === "draft" ? gen.slots : []; // les posts en cours de rédaction arrivent en brouillons
@@ -206,7 +206,7 @@ export default function KanbanBoard() {
               setDragging(null);
               if (id) void movePost(id, col.status);
             }}
-            className={`flex min-h-[320px] w-[300px] shrink-0 flex-col rounded-2xl border p-3 transition-colors lg:w-auto ${
+            className={`flex min-h-[320px] w-[85%] max-w-[340px] shrink-0 snap-start flex-col rounded-2xl border p-3 transition-colors lg:w-auto ${
               highlight ? "border-accent bg-accent-soft/40" : "border-line bg-stone-100/70"
             }`}
           >

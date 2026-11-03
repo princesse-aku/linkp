@@ -87,7 +87,7 @@ export default function AiKeyForm({
             placeholder="rd_sk_..."
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 font-mono text-base"
+            className="w-full rounded-xl border border-line bg-paper px-4 py-3.5 font-mono text-base shadow-sm focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15"
           />
           {error && (
             <p role="alert" className="text-base text-red-600">

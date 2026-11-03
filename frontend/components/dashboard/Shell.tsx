@@ -107,6 +107,64 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+// Barre de navigation du bas (mobile) : pastille flottante, bouton « Générer » central surélevé.
+function BottomNav({ onMore }: { onMore: () => void }) {
+  const pathname = usePathname();
+  const { gen, aiKey } = useDashboard();
+  const moreActive = ["/dashboard/media", "/dashboard/agenda", "/dashboard/settings"].some((p) => pathname.startsWith(p));
+
+  const tab = (href: string, label: string, Icon: typeof IconKanban, active: boolean) => (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`flex flex-col items-center gap-0.5 rounded-2xl py-1 text-[13px] font-medium transition-colors ${active ? "text-accent-dark" : "text-stone-500"}`}
+    >
+      <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${active ? "bg-accent-soft" : ""}`}>
+        <Icon className="h-6 w-6" />
+      </span>
+      {label}
+    </Link>
+  );
+
+  const hint = !aiKey.configured ? "Ajoute ta clé RodiumAI dans les paramètres" : !gen.canGenerate && !gen.busy ? "Ajoute un thème et une période dans les paramètres" : "Générer des posts";
+
+  return (
+    <nav aria-label="Navigation mobile" className="fixed inset-x-3 bottom-3 z-30 lg:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <div className="grid grid-cols-5 items-end rounded-[1.75rem] border border-line bg-paper/90 px-2 pb-2 pt-2 shadow-xl shadow-ink/15 backdrop-blur-md">
+        {tab("/dashboard", "Accueil", IconKanban, pathname === "/dashboard")}
+        {tab("/dashboard/posts", "Posts", IconList, pathname.startsWith("/dashboard/posts"))}
+
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={gen.generate}
+            disabled={!gen.canGenerate}
+            aria-label={gen.busy ? "Rédaction en cours" : "Générer des posts"}
+            title={hint}
+            className="-mt-9 flex h-16 w-16 flex-col items-center justify-center rounded-full bg-accent text-white shadow-lg shadow-accent/40 ring-[5px] ring-cream transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <IconSpark className={`h-6 w-6 ${gen.busy ? "animate-pulse" : ""}`} />
+            <span className="mt-0.5 text-[11px] font-semibold leading-none">{gen.busy ? `${gen.progress?.done ?? 0}/${gen.progress?.total ?? "…"}` : "Générer"}</span>
+          </button>
+        </div>
+
+        {tab("/dashboard/style", "Style", IconPen, pathname.startsWith("/dashboard/style"))}
+        <button
+          type="button"
+          onClick={onMore}
+          aria-label="Plus : médiathèque, agenda, paramètres"
+          className={`flex flex-col items-center gap-0.5 rounded-2xl py-1 text-[13px] font-medium transition-colors ${moreActive ? "text-accent-dark" : "text-stone-500"}`}
+        >
+          <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${moreActive ? "bg-accent-soft" : ""}`}>
+            <IconMenu className="h-6 w-6" />
+          </span>
+          Plus
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, aiKey, gen, flash, clearFlash, notify } = useDashboard();
@@ -178,7 +236,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             onClick={gen.generate}
             disabled={!gen.canGenerate}
             title={generateHint}
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-base font-semibold text-white shadow-sm transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-60"
+            className="hidden h-11 items-center gap-2 rounded-full bg-accent px-5 text-base font-semibold text-white shadow-sm transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-60 lg:inline-flex"
           >
             <IconSpark className={`h-5 w-5 ${gen.busy ? "animate-pulse" : ""}`} />
             <span className="hidden sm:inline">{generateLabel}</span>
@@ -186,7 +244,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </button>
         </header>
 
-        <main className="mx-auto w-full max-w-[1400px] space-y-5 px-4 py-6 sm:px-8 sm:py-8">
+        <main className="mx-auto w-full max-w-[1400px] space-y-5 px-4 pb-32 pt-6 sm:px-8 sm:pt-8 lg:pb-8">
           {user.email && !user.emailVerified && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft p-4 text-base">
               <p>Confirme ton adresse email pour sécuriser ton compte.</p>
@@ -209,13 +267,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
+      <BottomNav onMore={() => setMenu(true)} />
       <PostDrawer />
 
       {/* Notification fixe : toujours visible, où que l'on soit sur la page */}
       {flash && (
         <div
           role={flash.type === "error" ? "alert" : "status"}
-          className={`fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md items-start gap-3 rounded-xl border p-4 text-base shadow-xl sm:left-auto sm:right-6 sm:mx-0 ${
+          className={`fixed inset-x-4 bottom-28 z-50 mx-auto flex max-w-md lg:bottom-4 items-start gap-3 rounded-xl border p-4 text-base shadow-xl sm:left-auto sm:right-6 sm:mx-0 ${
             flash.type === "error" ? "border-red-200 bg-red-50 text-red-800" : "border-green-200 bg-green-50 text-green-900"
           }`}
         >

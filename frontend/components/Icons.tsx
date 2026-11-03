@@ -115,7 +115,26 @@ export const IconTrash = ({ className = "h-5 w-5" }: P) => (
   </svg>
 );
 
-export const IconKanban = ({ className = "h-5 w-5" }: P) => (
+export const IconUpload = ({ className = "h-5 w-5" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M12 16V4M7 9l5-5 5 5M4 20h16" />
+  </svg>
+);
+
+export const IconEye = ({ className = "h-5 w-5" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+export const IconEyeOff = ({ className = "h-5 w-5" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M17.9 17.9A10.4 10.4 0 0 1 12 19c-6.4 0-10-7-10-7a17.8 17.8 0 0 1 4.2-5M9.9 5.2A9.7 9.7 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-2.2 3.2M1 1l22 22M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+  </svg>
+);
+
+export const IconKanban =({ className = "h-5 w-5" }: P) => (
   <svg {...base} className={className}>
     <rect x="3" y="3" width="5" height="18" rx="1.5" />
     <rect x="10" y="3" width="5" height="11" rx="1.5" />

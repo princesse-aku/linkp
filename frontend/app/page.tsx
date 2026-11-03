@@ -4,10 +4,14 @@ import Link from "next/link";
 import { DoodleArrow, DoodleCrumple, DoodlePin, DoodlePlane, DoodleSpark, DoodleSquiggle } from "@/components/Doodles";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
-import { IconArrowDown, IconArrowRight, IconCalendar, IconCheck, IconPen, IconSpark } from "@/components/Icons";
+import { IconArrowDown, IconArrowRight, IconCalendar, IconCheck, IconSpark } from "@/components/Icons";
+import { Floater, PlanningWidget, ThemesWidget, ToolTiles } from "@/components/landing/Widgets";
 import { LogoMark } from "@/components/Logo";
 import Reveal from "@/components/Reveal";
 import TypeWriter from "@/components/TypeWriter";
+import { SITE, pageMeta } from "@/lib/site";
+
+export const metadata = pageMeta({ title: SITE.title, absoluteTitle: true, description: SITE.description, path: "/" });
 
 // La capture réelle du dashboard : dépose-la dans frontend/public/dashboard-preview.png
 const hasDashboardShot = existsSync(path.join(process.cwd(), "public", "dashboard-preview.png"));
@@ -61,84 +65,6 @@ function Eyebrow({ children, center = false }: { children: React.ReactNode; cent
 }
 
 // Élément flottant du hero : apparaît en fondu puis flotte doucement.
-function Floater({ className, delay, duration, children }: { className: string; delay: number; duration: number; children: React.ReactNode }) {
-  return (
-    <div className={`fade-up absolute hidden lg:block ${className}`} style={{ animationDelay: `${delay}ms` }}>
-      <div className="float" style={{ animationDuration: `${duration}s`, animationDelay: `-${delay / 100}s` }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function PlanningWidget() {
-  const rows = [
-    ["Mar", "9h00", "Leadership"],
-    ["Jeu", "9h00", "Storytelling"],
-    ["Sam", "10h00", "Recrutement"],
-  ];
-  return (
-    <div className={`w-56 rotate-[2deg] rounded-2xl border border-line bg-paper p-4 text-left ${cardShadow}`}>
-      <div className="flex items-center justify-between font-serif text-lg font-medium">
-        Planning
-        <IconCalendar className="h-4 w-4 text-accent" />
-      </div>
-      <ul className="mt-3 space-y-2.5">
-        {rows.map(([d, h, t]) => (
-          <li key={d} className="flex items-center gap-3 rounded-xl bg-cream px-3 py-2 text-sm">
-            <span className="w-9 rounded-md bg-accent-soft py-1 text-center font-semibold text-accent-dark">{d}</span>
-            <span className="flex-1">
-              <span className="block font-medium text-ink">{t}</span>
-              <span className="block text-stone-500">{h}</span>
-            </span>
-            <span className="h-2.5 w-2.5 rounded-full bg-forest" />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function ThemesWidget() {
-  return (
-    <div className={`w-56 rotate-[-2deg] rounded-2xl border border-line bg-paper p-4 text-left ${cardShadow}`}>
-      <p className="font-serif text-lg font-medium">Tes thèmes</p>
-      <div className="mt-3 flex flex-wrap gap-2 text-sm">
-        {["Leadership", "IA", "Recrutement"].map((t, i) => (
-          <span key={t} className={`rounded-full px-3 py-1 ${i === 0 ? "bg-accent text-white" : "bg-cream text-ink ring-1 ring-line"}`}>
-            {t}
-          </span>
-        ))}
-      </div>
-      <p className="mt-4 text-sm font-medium text-stone-500">Tons</p>
-      <div className="mt-2 flex flex-wrap gap-2 text-sm">
-        {["Storytelling", "Bienveillant"].map((t) => (
-          <span key={t} className="rounded-full bg-forest px-3 py-1 text-cream">
-            {t}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ToolTiles() {
-  const tile = "flex h-16 w-16 items-center justify-center rounded-2xl border border-line bg-paper shadow-lg";
-  return (
-    <div className="relative h-36 w-44">
-      <div className={`${tile} absolute left-0 top-10 rotate-[-10deg] text-accent`}>
-        <IconSpark className="h-7 w-7" />
-      </div>
-      <div className={`${tile} absolute left-14 top-0 rotate-[6deg] text-forest`}>
-        <IconPen className="h-7 w-7" />
-      </div>
-      <div className={`${tile} absolute left-24 top-16 rotate-[-4deg] text-ink`}>
-        <IconCalendar className="h-7 w-7" />
-      </div>
-    </div>
-  );
-}
-
 function PostPaper() {
   return (
     <div className={`mx-auto w-full max-w-md rotate-[-1.5deg] rounded-sm border border-line bg-paper p-6 text-left ${cardShadow}`}>
@@ -241,9 +167,47 @@ function StepArt({ index }: { index: number }) {
   );
 }
 
+// Données structurées (schema.org) : aident Google à comprendre le site et à afficher la FAQ dans les résultats.
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${SITE.url}/#website`,
+      url: SITE.url,
+      name: SITE.name,
+      description: SITE.description,
+      inLanguage: "fr-FR",
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE.url}/#app`,
+      name: SITE.name,
+      url: SITE.url,
+      description: SITE.description,
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      inLanguage: "fr-FR",
+      image: `${SITE.url}/opengraph-image`,
+      author: { "@type": "Person", name: SITE.author.name, url: SITE.author.url },
+    },
+    {
+      "@type": "FAQPage",
+      "@id": `${SITE.url}/#faq`,
+      mainEntity: faq.map(([question, answer]) => ({
+        "@type": "Question",
+        name: question,
+        acceptedAnswer: { "@type": "Answer", text: answer },
+      })),
+    },
+  ],
+};
+
 export default function Home() {
   return (
     <>
+      {/* « < » échappé pour qu'aucun contenu ne puisse refermer la balise script */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <Header />
 
       <main className="flex-1">

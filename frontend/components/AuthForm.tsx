@@ -13,7 +13,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { firebaseAuth } from "@/lib/firebase";
-import Logo from "./Logo";
+import AuthShell from "@/components/auth/AuthShell";
+import Field, { FormError, PasswordStrength, SubmitButton } from "@/components/auth/Field";
 
 const MESSAGES: Record<string, string> = {
   "auth/invalid-credential": "Email ou mot de passe incorrect.",
@@ -76,68 +77,74 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
-        <Logo />
-        <h1 className="mt-4 font-serif text-3xl font-medium">{signup ? "Créer un compte" : "Connexion"}</h1>
-
-        <button
-          type="button"
-          onClick={google}
-          disabled={busy}
-          className="mt-6 w-full rounded-lg border border-stone-300 py-2.5 text-base font-medium hover:bg-stone-50 disabled:opacity-60"
-        >
-          Continuer avec Google
-        </button>
-        <div className="my-5 text-center text-sm text-stone-400">ou</div>
-
-        <form onSubmit={submit} className="space-y-4">
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-base"
-          />
-          <input
-            type="password"
-            required
-            minLength={6}
-            autoComplete={signup ? "new-password" : "current-password"}
-            placeholder="Mot de passe"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-base"
-          />
-          {!signup && (
-            <p className="text-right text-sm">
-              <Link href="/forgot-password" className="font-medium text-accent hover:underline">
-                Mot de passe oublié ?
-              </Link>
-            </p>
-          )}
-          {error && (
-            <p role="alert" className="text-base text-red-600">
-              {error}
-            </p>
-          )}
-          <button
-            disabled={busy}
-            className="w-full rounded-lg bg-accent py-2.5 text-base font-semibold text-white hover:bg-accent-dark disabled:opacity-60"
-          >
-            {busy ? "..." : signup ? "Créer mon compte" : "Se connecter"}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-base text-stone-600">
+    <AuthShell
+      art={mode}
+      eyebrow={signup ? "Inscription gratuite" : "Content de te revoir"}
+      title={
+        signup ? (
+          <>
+            Crée ton compte, <em>écris mieux</em>.
+          </>
+        ) : (
+          <>
+            Reprends <em>ta plume</em>.
+          </>
+        )
+      }
+      subtitle={signup ? "Quelques secondes pour commencer, aucune carte bancaire demandée." : "Connecte-toi pour retrouver tes idées et tes posts."}
+      footer={
+        <>
           {signup ? "Déjà inscrit ?" : "Pas encore de compte ?"}{" "}
-          <Link href={signup ? "/login" : "/signup"} className="font-medium text-accent">
+          <Link href={signup ? "/login" : "/signup"} className="font-semibold text-accent hover:underline">
             {signup ? "Connexion" : "Créer un compte"}
           </Link>
-        </p>
+        </>
+      }
+    >
+      <button
+        type="button"
+        onClick={google}
+        disabled={busy}
+        className="flex w-full items-center justify-center gap-3 rounded-full border border-line bg-paper px-7 py-3.5 text-base font-semibold shadow-sm transition hover:bg-white disabled:opacity-60"
+      >
+        <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
+          <path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.3h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.4-4.700 3.4-8.100z" />
+          <path fill="#34A853" d="M12 23c3 0 5.500-1 7.300-2.700l-3.500-2.700c-1 .7-2.300 1.100-3.800 1.100-2.900 0-5.400-2-6.300-4.600H2.100v2.800A11 11 0 0 0 12 23z" />
+          <path fill="#FBBC05" d="M5.700 14.100a6.600 6.600 0 0 1 0-4.200V7.100H2.100a11 11 0 0 0 0 9.800z" />
+          <path fill="#EA4335" d="M12 5.400c1.600 0 3.100.6 4.200 1.600l3.100-3.100A10.600 10.600 0 0 0 12 1 11 11 0 0 0 2.100 7.100l3.600 2.800C6.600 7.400 9.100 5.400 12 5.400z" />
+        </svg>
+        Continuer avec Google
+      </button>
+
+      <div className="my-6 flex items-center gap-4 text-sm text-stone-500">
+        <span className="h-px flex-1 bg-line" />
+        ou avec ton email
+        <span className="h-px flex-1 bg-line" />
       </div>
-    </main>
+
+      <form onSubmit={submit} className="space-y-5">
+        <Field label="Email" type="email" required autoComplete="email" placeholder="toi@exemple.com" value={email} onChange={setEmail} />
+        <Field
+          label="Mot de passe"
+          type="password"
+          required
+          minLength={6}
+          autoComplete={signup ? "new-password" : "current-password"}
+          placeholder={signup ? "6 caractères minimum" : "Ton mot de passe"}
+          value={password}
+          onChange={setPassword}
+          aside={
+            !signup && (
+              <Link href="/forgot-password" className="text-sm font-medium text-accent hover:underline">
+                Mot de passe oublié ?
+              </Link>
+            )
+          }
+          hint={signup ? <PasswordStrength value={password} /> : undefined}
+        />
+        {error && <FormError>{error}</FormError>}
+        <SubmitButton busy={busy}>{signup ? "Créer mon compte" : "Se connecter"}</SubmitButton>
+      </form>
+    </AuthShell>
   );
 }

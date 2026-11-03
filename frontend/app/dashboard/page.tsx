@@ -10,7 +10,7 @@ import ProfileSection from "@/components/dashboard/ProfileSection";
 import StyleSection from "@/components/dashboard/StyleSection";
 import { Notify, btnGhost } from "@/components/dashboard/ui";
 import Logo from "@/components/Logo";
-import { AI_KEY_PROBLEM, api, errorMessage } from "@/lib/api";
+import { AI_KEY_PROBLEM, ApiError, api, errorMessage } from "@/lib/api";
 import { firebaseAuth } from "@/lib/firebase";
 import { AiKeyStatus, CalendarStatus, EMPTY_PROFILE, Example, GenerateResult, Media, Post, Profile } from "@/lib/types";
 import { useAuth } from "@/lib/useAuth";
@@ -66,6 +66,12 @@ export default function Dashboard() {
         setCalendar(c);
         setAiKey(k);
       } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          // Compte supprimé ou session expirée : on repart de la page de connexion.
+          await signOut(firebaseAuth());
+          router.replace("/login");
+          return;
+        }
         notify("error", errorMessage(err));
       }
       setReady(true);
@@ -156,12 +162,18 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Notification fixe : toujours visible, où que l'on soit sur la page */}
         {flash && (
           <div
             role={flash.type === "error" ? "alert" : "status"}
-            className={`rounded-xl p-4 text-base ${flash.type === "error" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-800"}`}
+            className={`fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md items-start gap-3 rounded-xl border p-4 text-base shadow-xl sm:left-auto sm:right-6 sm:mx-0 ${
+              flash.type === "error" ? "border-red-200 bg-red-50 text-red-800" : "border-green-200 bg-green-50 text-green-900"
+            }`}
           >
-            {flash.text}
+            <span className="flex-1">{flash.text}</span>
+            <button type="button" onClick={() => setFlash(null)} aria-label="Fermer la notification" className="text-xl leading-none opacity-60 hover:opacity-100">
+              ×
+            </button>
           </div>
         )}
 

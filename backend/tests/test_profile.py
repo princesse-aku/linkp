@@ -3,6 +3,14 @@ def test_auth_required(client):
     assert client.get("/api/profile", headers={"Authorization": "Bearer nimportequoi"}).status_code == 401
 
 
+def test_deleted_account_token_is_rejected(client, user):
+    from firebase_admin import auth as fb_auth
+
+    assert client.get("/api/profile", headers=user["headers"]).status_code == 200
+    fb_auth.delete_user(user["uid"])
+    assert client.get("/api/profile", headers=user["headers"]).status_code == 401
+
+
 def test_profile_created_on_first_read(client, user):
     r = client.get("/api/profile", headers=user["headers"])
     assert r.status_code == 200

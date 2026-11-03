@@ -49,15 +49,18 @@ def test_welcome_requires_auth(client):
 
 
 def test_smtp_delivers_to_mailpit():
-    """Envoi réel vers Mailpit (inclus dans docker compose)."""
+    """Envoi réel vers Mailpit (inclus dans docker compose). La boîte n'est pas vidée."""
+    import uuid
+
     api = f"http://{settings.smtp_host}:8025/api/v1/messages"
+    subject = f"Sujet de test {uuid.uuid4().hex}"
     try:
-        httpx.delete(api, timeout=3)
+        httpx.get(api, timeout=3)
     except httpx.HTTPError:
         pytest.skip("Mailpit injoignable")
-    mail.send_email("dest@example.com", "Sujet de test", "<p>Bonjour</p>", "Bonjour")
+    mail.send_email("dest@example.com", subject, "<p>Bonjour</p>", "Bonjour")
     messages = httpx.get(api, timeout=3).json()["messages"]
-    assert messages and messages[0]["Subject"] == "Sujet de test"
+    assert any(m["Subject"] == subject for m in messages)
 
 
 def test_resend_is_called_with_the_api_key(monkeypatch):

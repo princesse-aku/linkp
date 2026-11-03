@@ -1,6 +1,9 @@
 """Tests d'intégration : ils tournent contre les émulateurs Firebase (docker compose up firebase).
 
 Lancer :  docker compose run --rm backend pytest
+
+Les tests partagent les émulateurs avec l'application en dev : ils ne vident JAMAIS les données.
+Chaque test crée ses propres utilisateurs (adresses uniques) et supprime uniquement ceux-là à la fin.
 """
 import os
 import uuid
@@ -9,12 +12,11 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import settings
+from app.firebase import db, init_firebase
 from app.main import app
 
 AUTH_HOST = os.environ.get("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
 FIRESTORE_HOST = os.environ.get("FIRESTORE_EMULATOR_HOST", "localhost:8080")
-PROJECT = settings.firebase_project_id
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -26,12 +28,26 @@ def _emulators_up():
             pytest.exit(f"Émulateur {name} injoignable sur {host}. Lance : docker compose up -d firebase", returncode=2)
 
 
+# Utilisateurs créés pendant le test courant : eux seuls sont supprimés à la fin.
+_created: list[str] = []
+
+
 @pytest.fixture(autouse=True)
-def _clean_emulators():
-    """Repart d'une base et d'un annuaire vides pour chaque test."""
-    httpx.delete(f"http://{FIRESTORE_HOST}/emulator/v1/projects/{PROJECT}/databases/(default)/documents")
-    httpx.delete(f"http://{AUTH_HOST}/emulator/v1/projects/{PROJECT}/accounts")
+def _cleanup_created_users():
+    _created.clear()
     yield
+    if not _created:
+        return
+    from firebase_admin import auth as fb_auth
+
+    init_firebase()
+    for uid in _created:
+        try:
+            fb_auth.delete_user(uid)
+        except Exception:  # déjà supprimé par le test lui-même
+            pass
+        db().recursive_delete(db().collection("users").document(uid))
+    _created.clear()
 
 
 @pytest.fixture
@@ -48,6 +64,7 @@ def _signup(email: str | None = None, password: str = "motdepasse123") -> dict:
     )
     r.raise_for_status()
     data = r.json()
+    _created.append(data["localId"])
     return {"email": email, "uid": data["localId"], "headers": {"Authorization": f"Bearer {data['idToken']}"}}
 
 

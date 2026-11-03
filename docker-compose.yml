@@ -13,7 +13,8 @@ services:
       - emulator-cache:/root/.cache
     stop_grace_period: 30s
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:8080',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      # Prêt seulement quand Firestore (8080) ET Auth (9099) répondent
+      test: ["CMD", "node", "-e", "const h=require('http');const ping=(p)=>new Promise((ok,ko)=>h.get('http://127.0.0.1:'+p,r=>r.statusCode<500?ok():ko()).on('error',ko));Promise.all([ping(8080),ping(9099)]).then(()=>process.exit(0),()=>process.exit(1))"]
       interval: 5s
       timeout: 5s
       retries: 30

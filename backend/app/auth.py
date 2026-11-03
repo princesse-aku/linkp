@@ -25,7 +25,8 @@ def current_user(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -
         raise HTTPException(status_code=401, detail="Authentification requise")
     init_firebase()
     try:
-        decoded = fb_auth.verify_id_token(creds.credentials)
+        # check_revoked : refuse aussi le jeton d'un compte supprimé ou désactivé (sinon il resterait valide jusqu'à 1 h).
+        decoded = fb_auth.verify_id_token(creds.credentials, check_revoked=True)
     except Exception as exc:  # jeton invalide, expiré, mal formé…
         log.info("Jeton refusé : %s", exc)
         raise HTTPException(status_code=401, detail="Jeton invalide ou expiré")

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AiKeyForm from "@/components/AiKeyForm";
+import { IconCheck } from "@/components/Icons";
 import { api, errorMessage } from "@/lib/api";
 import type { AiKeyStatus, Profile } from "@/lib/types";
 import { AiHint, Notify, Section, btnDark, btnGhost, btnPrimary, input } from "./ui";
@@ -37,6 +38,7 @@ export default function ProfileSection({
   const [themeInput, setThemeInput] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [busy, setBusy] = useState<"" | "save" | "suggest">("");
+  const [saved, setSaved] = useState(false);
 
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) => onChange({ ...profile, [key]: value });
 
@@ -49,9 +51,12 @@ export default function ProfileSection({
 
   async function save() {
     setBusy("save");
+    setSaved(false);
     try {
       onChange(await api<Profile>("/profile", { method: "PUT", body: JSON.stringify(profile) }));
       notify("ok", "Informations enregistrées.");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3500);
     } catch (err) {
       notify("error", errorMessage(err));
     }
@@ -214,7 +219,15 @@ export default function ProfileSection({
           </label>
         </div>
         <button type="button" onClick={save} disabled={busy !== ""} className={btnPrimary}>
-          {busy === "save" ? "Enregistrement…" : "Enregistrer mes informations"}
+          {busy === "save" ? (
+            "Enregistrement…"
+          ) : saved ? (
+            <span className="inline-flex items-center gap-2">
+              <IconCheck className="h-4 w-4" /> Enregistré
+            </span>
+          ) : (
+            "Enregistrer mes informations"
+          )}
         </button>
       </Section>
     </>

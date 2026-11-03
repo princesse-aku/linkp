@@ -18,7 +18,7 @@ def _back(result: str, detail: str | None = None) -> RedirectResponse:
     params = {"calendar": result}
     if detail:
         params["detail"] = detail
-    return RedirectResponse(f"{settings.frontend_origin.rstrip('/')}/dashboard?{urlencode(params)}")
+    return RedirectResponse(f"{settings.frontend_origin.rstrip('/')}/dashboard/agenda?{urlencode(params)}")
 
 
 @router.get("/status", response_model=CalendarStatus)

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const input = "w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base";
 export const btnPrimary =
   "rounded-lg bg-accent px-5 py-2.5 text-base font-semibold text-white hover:bg-accent-dark disabled:opacity-60";
@@ -40,9 +42,9 @@ export function AiHint() {
   return (
     <p className="text-base text-stone-500">
       Cette action utilise l&apos;IA.{" "}
-      <a href="#ia" className="font-medium text-accent underline">
+      <Link href="/dashboard/settings#ia" className="font-medium text-accent underline">
         Ajoute ta clé RodiumAI
-      </a>{" "}
+      </Link>{" "}
       pour l&apos;activer.
     </p>
   );

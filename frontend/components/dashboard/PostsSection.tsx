@@ -1,6 +1,6 @@
 "use client";
 
-import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   IconCalendar,
   IconCheck,
@@ -16,8 +16,10 @@ import {
 } from "@/components/Icons";
 import { ImageThumb, type ViewerImage, isPdf, slug, useImageViewer } from "@/components/ImageViewer";
 import { api, errorMessage } from "@/lib/api";
-import { streamGenerate } from "@/lib/stream";
-import type { GenSlot, GenerateDone, Media, Post, PostImageResult, PostStatus, Profile } from "@/lib/types";
+import { dayParts, longDate, timeLabel } from "@/lib/dates";
+import type { Media, Post, PostImageResult, PostStatus } from "@/lib/types";
+import { useDashboard } from "./DashboardProvider";
+import type { Slot } from "./useGeneration";
 import { AiHint, Chip, Notify, Section, btnDark, btnGhost, btnPrimary, input } from "./ui";
 
 type View = "list" | "grid";
@@ -25,23 +27,6 @@ type Filter = "all" | PostStatus;
 
 const STATUS: Record<PostStatus, string> = { draft: "Brouillon", scheduled: "Programmé", published: "Publié" };
 const VIEW_KEY = "linkp:posts-view";
-
-// ---------- Dates : scheduled_for est une heure locale (fuseau du profil), ex. 2026-11-09T09:00:00 ----------
-
-function dayParts(iso: string) {
-  const d = new Date(iso);
-  return {
-    weekday: d.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", ""),
-    day: d.getDate(),
-    month: d.toLocaleDateString("fr-FR", { month: "short" }).replace(".", ""),
-  };
-}
-
-const timeLabel = (iso: string) => new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-const longDate = (iso: string) => {
-  const text = new Date(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-  return text.charAt(0).toUpperCase() + text.slice(1); // « Lundi 9 novembre »
-};
 
 // ---------- Petits éléments ----------
 
@@ -113,11 +98,12 @@ function IconButton({
 
 // ---------- Carte d'un post ----------
 
-function PostCard({
+export function PostCard({
   post,
   media,
   aiReady,
   view,
+  defaultOpen = false,
   onUpdate,
   onDelete,
   onMedia,
@@ -127,12 +113,13 @@ function PostCard({
   media: Media[];
   aiReady: boolean;
   view: View;
+  defaultOpen?: boolean;
   onUpdate: (p: Post) => void;
   onDelete: (id: string) => void;
   onMedia: (m: Media) => void;
   notify: Notify;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [editing, setEditing] = useState(false);
   const [rewriting, setRewriting] = useState(false);
   const [instruction, setInstruction] = useState("");
@@ -439,8 +426,6 @@ function PostCard({
 
 // ---------- Emplacements en attente / en échec (génération en cours) ----------
 
-type Slot = GenSlot & { status: "pending" | "error"; message?: string; retrying?: boolean };
-
 function PostSkeleton({ slot, position, total, view }: { slot: Slot; position: number; total: number; view: View }) {
   const label = (
     <>
@@ -510,43 +495,25 @@ function FailedSlot({ slot, onRetry }: { slot: Slot; onRetry: () => void }) {
   );
 }
 
-// ---------- Section ----------
+// ---------- Page « Mes posts » ----------
 
-export default function PostsSection({
-  posts,
-  setPosts,
-  media,
-  onMedia,
-  profile,
-  aiReady,
-  notify,
-}: {
-  posts: Post[];
-  setPosts: Dispatch<SetStateAction<Post[]>>;
-  media: Media[];
-  onMedia: (m: Media) => void;
-  profile: Profile;
-  aiReady: boolean;
-  notify: Notify;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [view, setView] = useState<View>("list");
-  const [filter, setFilter] = useState<Filter>("all");
-  const abortRef = useRef<AbortController | null>(null);
-  const ready = profile.themes.length > 0 && profile.start_date && profile.end_date;
-  const hasEditable = posts.some((p) => p.status !== "published");
-
-  // La vue choisie (liste ou grille) est mémorisée dans le navigateur.
-  useEffect(() => {
+export default function PostsSection() {
+  const { posts, profile, media, setMedia, aiKey, gen, notify, updatePost, removePost } = useDashboard();
+  const aiReady = aiKey.configured;
+  // La vue choisie (liste ou grille) est mémorisée dans le navigateur. Cette section n'est affichée qu'après
+  // le chargement des données (côté navigateur uniquement) : on peut donc lire le stockage dès le départ.
+  const [view, setView] = useState<View>(() => {
     try {
       const saved = localStorage.getItem(VIEW_KEY);
-      if (saved === "grid" || saved === "list") setView(saved);
+      if (saved === "grid" || saved === "list") return saved;
     } catch {
       /* stockage indisponible : on garde la vue par défaut */
     }
-  }, []);
+    return "list";
+  });
+  const [filter, setFilter] = useState<Filter>("all");
+  const { busy, slots, progress } = gen;
+  const ready = profile.themes.length > 0 && profile.start_date && profile.end_date;
 
   function changeView(next: View) {
     setView(next);
@@ -554,99 +521,6 @@ export default function PostsSection({
       localStorage.setItem(VIEW_KEY, next);
     } catch {
       /* sans conséquence */
-    }
-  }
-
-  // Si on quitte la page pendant la rédaction, on coupe la connexion (le serveur arrête les rédactions restantes).
-  useEffect(() => () => abortRef.current?.abort(), []);
-
-  const reload = () => api<Post[]>("/posts").then(setPosts).catch(() => undefined);
-
-  async function generate() {
-    if (hasEditable && !window.confirm("Générer de nouveaux posts remplace les brouillons et posts programmés non publiés. Continuer ?")) return;
-    setBusy(true);
-    setSlots([]);
-    setFilter("all");
-    try {
-      // On enregistre d'abord les informations affichées pour que la génération parte de ce que tu vois.
-      await api<Profile>("/profile", { method: "PUT", body: JSON.stringify(profile) });
-    } catch (err) {
-      notify("error", errorMessage(err));
-      setBusy(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-    let total = 0;
-    let received = 0;
-    let fatal: string | null = null;
-    let summary: GenerateDone | null = null;
-
-    try {
-      await streamGenerate((event) => {
-        if (event.type === "start") {
-          total = event.total;
-          setProgress({ done: 0, total });
-          setSlots(event.slots.map((s) => ({ ...s, status: "pending" })));
-          // Les anciens brouillons disparaissent de l'écran ; le serveur ne les supprime qu'au premier post réussi.
-          setPosts((prev) => prev.filter((p) => p.status === "published"));
-        } else if (event.type === "post") {
-          received += 1;
-          setPosts((prev) => [...prev, event.post]);
-          setSlots((prev) => prev.filter((s) => s.index !== event.index));
-          setProgress({ done: received, total });
-        } else if (event.type === "post_error") {
-          setSlots((prev) => prev.map((s) => (s.index === event.index ? { ...s, status: "error", message: event.message } : s)));
-        } else if (event.type === "fatal") {
-          fatal = event.message;
-        } else if (event.type === "done") {
-          summary = event;
-        }
-      }, controller.signal);
-    } catch (err) {
-      if (!controller.signal.aborted) fatal = errorMessage(err);
-    }
-
-    if (controller.signal.aborted) return; // page quittée : rien à afficher
-
-    const done = summary as GenerateDone | null;
-    if (fatal) {
-      setSlots([]);
-      if (received === 0) await reload(); // rien de nouveau : on réaffiche les anciens posts
-      notify("error", fatal);
-    } else if (!done) {
-      setSlots([]);
-      await reload();
-      notify("error", "La génération a été interrompue. Les posts déjà rédigés ont été conservés.");
-    } else if (done.created === 0) {
-      setSlots([]);
-      await reload();
-      notify("error", "Aucun post n'a pu être rédigé. Tes posts précédents sont conservés, réessaie dans un instant.");
-    } else if (done.failed > 0) {
-      notify("error", `${done.created} post(s) rédigé(s), ${done.failed} en échec : utilise « Réessayer » sur les cartes concernées.`);
-    } else if (done.calendar.error) {
-      notify("error", `${done.created} posts générés, mais le rappel agenda a échoué : ${done.calendar.error}`);
-    } else if (done.calendar.connected) {
-      notify("ok", `${done.created} posts générés, ${done.calendar.synced} rappel(s) ajouté(s) à Google Agenda.`);
-    } else {
-      notify("ok", `${done.created} posts générés.`);
-    }
-    setProgress(null);
-    setBusy(false);
-  }
-
-  async function retry(slot: Slot) {
-    setSlots((prev) => prev.map((s) => (s.index === slot.index ? { ...s, retrying: true } : s)));
-    try {
-      const created = await api<Post>("/posts/generate/one", {
-        method: "POST",
-        body: JSON.stringify({ theme: slot.theme, scheduled_for: slot.scheduled_for }),
-      });
-      setPosts((prev) => [...prev, created]);
-      setSlots((prev) => prev.filter((s) => s.index !== slot.index));
-    } catch (err) {
-      setSlots((prev) => prev.map((s) => (s.index === slot.index ? { ...s, retrying: false, message: errorMessage(err) } : s)));
     }
   }
 
@@ -675,7 +549,7 @@ export default function PostsSection({
   return (
     <Section id="posts" title="Tes posts programmés" hint="Génère tes posts sur la période choisie, puis relis, ajuste et publie.">
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={generate} disabled={busy || !ready || !aiReady} className={btnPrimary}>
+        <button type="button" onClick={gen.generate} disabled={!gen.canGenerate} className={btnPrimary}>
           {busy ? "Rédaction en cours…" : posts.length ? "Générer de nouveaux posts" : "Générer mes posts"}
         </button>
         {aiReady && !ready && <p className="text-base text-stone-500">Ajoute au moins un thème et une période pour générer.</p>}
@@ -760,15 +634,15 @@ export default function PostsSection({
                   aiReady={aiReady}
                   view={view}
                   notify={notify}
-                  onMedia={onMedia}
-                  onUpdate={(u) => setPosts((prev) => prev.map((x) => (x.id === u.id ? u : x)))}
-                  onDelete={(id) => setPosts((prev) => prev.filter((x) => x.id !== id))}
+                  onMedia={(m) => setMedia((prev) => [m, ...prev])}
+                  onUpdate={updatePost}
+                  onDelete={removePost}
                 />
               );
             }
             const slot = item.slot as Slot;
             return slot.status === "error" ? (
-              <FailedSlot key={item.key} slot={slot} onRetry={() => retry(slot)} />
+              <FailedSlot key={item.key} slot={slot} onRetry={() => gen.retry(slot)} />
             ) : (
               <PostSkeleton key={item.key} slot={slot} position={slot.index + 1} total={progress?.total ?? slots.length} view={view} />
             );

@@ -19,10 +19,15 @@ export function LogoMark({ className = "h-8 w-8" }: { className?: string }) {
   );
 }
 
-export default function Logo({ onClick }: { onClick?: () => void }) {
+export default function Logo({ onClick, compact = false, href = "/" }: { onClick?: () => void; compact?: boolean; href?: string }) {
   return (
-    <Link href="/" onClick={onClick} className="flex items-center gap-3 font-serif text-3xl font-semibold tracking-tight" aria-label="LinkP, accueil">
-      <LogoMark className="h-12 w-12 sm:h-14 sm:w-14" />
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`flex items-center font-serif font-semibold tracking-tight ${compact ? "gap-2.5 text-2xl" : "gap-3 text-3xl"}`}
+      aria-label="LinkP, accueil"
+    >
+      <LogoMark className={compact ? "h-10 w-10" : "h-12 w-12 sm:h-14 sm:w-14"} />
       <span>
         Link<span className="text-accent">P</span>
       </span>

@@ -1,189 +1,131 @@
 "use client";
 
-import { signOut } from "firebase/auth";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import CalendarSection from "@/components/dashboard/CalendarSection";
-import MediaSection from "@/components/dashboard/MediaSection";
-import PostsSection from "@/components/dashboard/PostsSection";
-import ProfileSection from "@/components/dashboard/ProfileSection";
-import StyleSection from "@/components/dashboard/StyleSection";
-import { Notify, btnGhost } from "@/components/dashboard/ui";
-import Logo from "@/components/Logo";
-import { AI_KEY_PROBLEM, ApiError, api, errorMessage } from "@/lib/api";
-import { firebaseAuth } from "@/lib/firebase";
-import { AiKeyStatus, CalendarStatus, EMPTY_PROFILE, Example, Media, Post, Profile } from "@/lib/types";
-import { useAuth } from "@/lib/useAuth";
+import Link from "next/link";
+import { useState } from "react";
+import { IconCalendar, IconCheck, IconClock, IconList, IconPen } from "@/components/Icons";
+import { useDashboard } from "@/components/dashboard/DashboardProvider";
+import KanbanBoard from "@/components/dashboard/KanbanBoard";
+import { firstName } from "@/components/dashboard/Shell";
+import { longDate, timeLabel } from "@/lib/dates";
 
-const NAV = [
-  ["#profil", "Profil"],
-  ["#style", "Style"],
-  ["#posts", "Posts"],
-  ["#mediatheque", "Médiathèque"],
-  ["#agenda", "Agenda"],
-];
+function Stat({ label, value, icon, tint }: { label: string; value: number; icon: React.ReactNode; tint: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white p-5 shadow-sm">
+      <div>
+        <p className="font-serif text-4xl font-medium leading-none">{value}</p>
+        <p className="mt-2 text-base text-stone-600">{label}</p>
+      </div>
+      <span className={`flex h-12 w-12 items-center justify-center rounded-xl ${tint}`}>{icon}</span>
+    </div>
+  );
+}
 
-export default function Dashboard() {
-  const router = useRouter();
-  const { user, loading } = useAuth();
-  const [ready, setReady] = useState(false);
-  const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
-  const [examples, setExamples] = useState<Example[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [media, setMedia] = useState<Media[]>([]);
-  const [calendar, setCalendar] = useState<CalendarStatus | null>(null);
-  const [aiKey, setAiKey] = useState<AiKeyStatus>({ configured: false, last4: null });
-  const [flash, setFlash] = useState<{ type: "ok" | "error"; text: string } | null>(null);
-  const [verifyBusy, setVerifyBusy] = useState(false);
+export default function DashboardHome() {
+  const { user, profile, posts, examples, aiKey, calendar, gen } = useDashboard();
+  const name = firstName(profile.full_name, user.email);
+  const [now] = useState(() => Date.now()); // « prochain post » : l'instant d'ouverture de la page suffit
 
-  const notify: Notify = useCallback((type, text) => {
-    setFlash({ type, text });
-    if (type === "ok") setTimeout(() => setFlash((f) => (f?.text === text ? null : f)), 5000);
-  }, []);
+  const count = (s: string) => posts.filter((p) => p.status === s).length;
+  const upcoming = posts
+    .filter((p) => p.status !== "published" && p.scheduled_for && new Date(p.scheduled_for).getTime() >= now - 60 * 60 * 1000)
+    .sort((a, b) => (a.scheduled_for as string).localeCompare(b.scheduled_for as string))[0];
 
-  const reloadPosts = useCallback(() => api<Post[]>("/posts").then(setPosts), []);
-
-  useEffect(() => {
-    if (loading) return;
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-    (async () => {
-      try {
-        const [p, e, g, m, c, k] = await Promise.all([
-          api<Profile>("/profile"),
-          api<Example[]>("/examples"),
-          api<Post[]>("/posts"),
-          api<Media[]>("/media"),
-          api<CalendarStatus>("/calendar/status"),
-          api<AiKeyStatus>("/ai/key"),
-        ]);
-        setProfile(p);
-        setExamples(e);
-        setPosts(g);
-        setMedia(m);
-        setCalendar(c);
-        setAiKey(k);
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          // Compte supprimé ou session expirée : on repart de la page de connexion.
-          await signOut(firebaseAuth());
-          router.replace("/login");
-          return;
-        }
-        notify("error", errorMessage(err));
-      }
-      setReady(true);
-
-      // Retour de la page de consentement Google Agenda
-      const result = new URLSearchParams(window.location.search).get("calendar");
-      if (result) {
-        window.history.replaceState(null, "", "/dashboard");
-        if (result === "connected") notify("ok", "Google Agenda est connecté.");
-        else notify("error", "La connexion à Google Agenda n'a pas abouti. Réessaie.");
-      }
-    })();
-  }, [user, loading, router, notify]);
-
-  useEffect(() => {
-    const refresh = () => api<AiKeyStatus>("/ai/key").then(setAiKey).catch(() => undefined);
-    window.addEventListener(AI_KEY_PROBLEM, refresh);
-    return () => window.removeEventListener(AI_KEY_PROBLEM, refresh);
-  }, []);
-
-  async function resendVerification() {
-    setVerifyBusy(true);
-    try {
-      await api("/auth/resend-verification", { method: "POST" });
-      notify("ok", "Email de confirmation envoyé.");
-    } catch (err) {
-      notify("error", errorMessage(err));
-    }
-    setVerifyBusy(false);
-  }
-
-  async function logout() {
-    await signOut(firebaseAuth());
-    router.push("/");
-  }
-
-  if (loading || !user || !ready) return <p className="p-10 text-center text-stone-500">Chargement…</p>;
+  const profileReady = profile.themes.length > 0 && !!profile.start_date && !!profile.end_date;
+  const steps = [
+    { done: aiKey.configured, label: "Ajouter ta clé RodiumAI", hint: "Elle active la rédaction par l'IA.", href: "/dashboard/settings#ia" },
+    { done: profileReady, label: "Choisir tes thèmes et ta période", hint: "Sur quoi écrire, et quand publier.", href: "/dashboard/settings" },
+    { done: examples.length > 0, label: "Coller quelques posts passés", hint: "Pour que les posts te ressemblent (facultatif).", href: "/dashboard/style" },
+    { done: !!calendar?.connected, label: "Connecter Google Agenda", hint: "Des rappels avant chaque publication (facultatif).", href: "/dashboard/agenda" },
+  ];
+  const showChecklist = posts.length === 0 && !gen.busy;
 
   return (
-    <>
-      <header className="sticky top-0 z-20 border-b border-line bg-cream/90 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-6 py-3">
-          <Logo />
-          <nav className="hidden items-center gap-5 text-base font-medium text-stone-600 md:flex" aria-label="Sections">
-            {NAV.map(([href, label]) => (
-              <a key={href} href={href} className="hover:text-ink">
-                {label}
-              </a>
+    <div className="space-y-6">
+      {/* Bannière de bienvenue */}
+      <section className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-gradient-to-r from-[#F7EDD5] via-[#F8F0DD] to-accent-soft/70 p-5 sm:p-6">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-[#E07B39] font-serif text-2xl font-semibold uppercase text-white shadow-md" aria-hidden>
+          {(name || "?").charAt(0)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-serif text-2xl font-medium sm:text-3xl">Bonjour{name ? ` ${name}` : ""}</p>
+          <p className="mt-1 text-base text-stone-700">
+            {upcoming ? (
+              <>
+                Ton prochain post : <span className="font-semibold">{upcoming.theme || "sans thème"}</span>, {longDate(upcoming.scheduled_for as string).toLowerCase()} à {timeLabel(upcoming.scheduled_for as string)}.
+              </>
+            ) : posts.length > 0 ? (
+              "Tous tes posts sont publiés : génères-en de nouveaux pour continuer."
+            ) : (
+              "Voici où en sont tes posts LinkedIn. Commence par générer ta première série."
+            )}
+          </p>
+        </div>
+        <Link href="/dashboard/posts" className="inline-flex h-11 items-center rounded-full border border-stone-300 bg-white px-5 text-base font-semibold hover:bg-stone-50">
+          Voir en liste
+        </Link>
+      </section>
+
+      {/* Statistiques */}
+      <section aria-label="Statistiques" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <Stat label="Posts au total" value={posts.length} icon={<IconList className="h-6 w-6 text-stone-700" />} tint="bg-stone-100" />
+        <Stat label="Brouillons" value={count("draft")} icon={<IconPen className="h-6 w-6 text-stone-700" />} tint="bg-stone-100" />
+        <Stat label="Programmés" value={count("scheduled")} icon={<IconCalendar className="h-6 w-6 text-accent" />} tint="bg-accent-soft" />
+        <Stat label="Publiés" value={count("published")} icon={<IconCheck className="h-6 w-6 text-forest" />} tint="bg-forest/10" />
+      </section>
+
+      {/* Premiers pas */}
+      {showChecklist && (
+        <section className="rounded-2xl border border-line bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="font-serif text-2xl font-medium">Premiers pas</h2>
+          <p className="mt-1 text-base text-stone-600">Quelques minutes suffisent pour avoir tes premiers posts prêts.</p>
+          <ol className="mt-5 grid gap-3 md:grid-cols-2">
+            {steps.map((s, i) => (
+              <li key={s.label}>
+                <Link href={s.href} className="flex items-start gap-3 rounded-xl border border-line p-4 transition hover:border-accent/50 hover:bg-cream">
+                  <span
+                    className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${s.done ? "bg-forest text-white" : "bg-accent-soft text-accent-dark"}`}
+                    aria-label={s.done ? "Étape terminée" : `Étape ${i + 1}`}
+                  >
+                    {s.done ? <IconCheck className="h-4 w-4" /> : i + 1}
+                  </span>
+                  <span>
+                    <span className={`block text-base font-semibold ${s.done ? "text-stone-500 line-through" : ""}`}>{s.label}</span>
+                    <span className="block text-sm text-stone-600">{s.hint}</span>
+                  </span>
+                </Link>
+              </li>
             ))}
-          </nav>
-          <button onClick={logout} className="text-base font-medium text-stone-600 hover:text-ink">
-            Déconnexion
-          </button>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-4xl flex-1 space-y-6 px-6 py-10">
-        <div>
-          <h1 className="font-serif text-4xl font-medium">Ton espace</h1>
-          <p className="mt-1 text-base text-stone-500">{user.email}</p>
-        </div>
-
-        {user.email && !user.emailVerified && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft p-4 text-base">
-            <p>Confirme ton adresse email pour sécuriser ton compte.</p>
-            <button type="button" onClick={resendVerification} disabled={verifyBusy} className={btnGhost}>
-              {verifyBusy ? "Envoi…" : "Renvoyer l'email"}
-            </button>
-          </div>
-        )}
-
-        {!aiKey.configured && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft p-4 text-base">
-            <p>
-              <span className="font-semibold">L&apos;IA est désactivée.</span> Ajoute ta clé RodiumAI pour générer des idées, analyser ton style et
-              rédiger tes posts.
-            </p>
-            <a href="#ia" className={btnGhost}>
-              Ajouter ma clé
-            </a>
-          </div>
-        )}
-
-        {/* Notification fixe : toujours visible, où que l'on soit sur la page */}
-        {flash && (
-          <div
-            role={flash.type === "error" ? "alert" : "status"}
-            className={`fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md items-start gap-3 rounded-xl border p-4 text-base shadow-xl sm:left-auto sm:right-6 sm:mx-0 ${
-              flash.type === "error" ? "border-red-200 bg-red-50 text-red-800" : "border-green-200 bg-green-50 text-green-900"
-            }`}
+          </ol>
+          <button
+            type="button"
+            onClick={gen.generate}
+            disabled={!gen.canGenerate}
+            className="mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-accent px-6 text-base font-semibold text-white hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <span className="flex-1">{flash.text}</span>
-            <button type="button" onClick={() => setFlash(null)} aria-label="Fermer la notification" className="text-xl leading-none opacity-60 hover:opacity-100">
-              ×
-            </button>
-          </div>
-        )}
+            Générer mes premiers posts
+          </button>
+          {!gen.canGenerate && <p className="mt-2 text-sm text-stone-500">Les étapes 1 et 2 sont nécessaires pour générer.</p>}
+        </section>
+      )}
 
-        <ProfileSection profile={profile} onChange={setProfile} aiKey={aiKey} onAiKey={setAiKey} notify={notify} />
-        <StyleSection examples={examples} setExamples={setExamples} profile={profile} onProfile={setProfile} aiReady={aiKey.configured} notify={notify} />
-        <PostsSection
-          posts={posts}
-          setPosts={setPosts}
-          media={media}
-          onMedia={(m) => setMedia((prev) => [m, ...prev])}
-          profile={profile}
-          aiReady={aiKey.configured}
-          notify={notify}
-        />
-        <MediaSection media={media} setMedia={setMedia} notify={notify} />
-        <CalendarSection status={calendar} setStatus={setCalendar} onSynced={() => reloadPosts().catch(() => undefined)} notify={notify} />
-      </main>
-    </>
+      {/* Kanban */}
+      <section aria-labelledby="kanban-title" className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="kanban-title" className="font-serif text-2xl font-medium">
+              Tes posts
+            </h2>
+            <p className="text-base text-stone-600">Glisse une carte d&apos;une colonne à l&apos;autre pour changer son statut.</p>
+          </div>
+          {gen.progress && (
+            <p role="status" aria-live="polite" className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-4 py-2 text-base font-medium text-accent-dark">
+              <IconClock className="h-4 w-4 animate-pulse" />
+              {gen.progress.done} sur {gen.progress.total} posts prêts
+            </p>
+          )}
+        </div>
+        <KanbanBoard />
+      </section>
+    </div>
   );
 }

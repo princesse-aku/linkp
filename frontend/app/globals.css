@@ -72,6 +72,15 @@ section[id] {
   animation: shimmer 1.4s ease-in-out infinite;
 }
 
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+
+.slide-in-right {
+  animation: slide-in-right 0.3s ease-out both;
+}
+
 @keyframes marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
@@ -159,6 +168,7 @@ section[id] {
   .fade-up,
   .wiggle,
   .heartbeat,
+  .slide-in-right,
   .pop,
   .marquee {
     animation: none;

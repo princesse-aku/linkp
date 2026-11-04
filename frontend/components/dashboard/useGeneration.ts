@@ -66,6 +66,7 @@ export function useGeneration({
     let total = 0;
     let received = 0;
     let fatal: string | null = null;
+    let firstFailure: string | null = null;
     let summary: GenerateDone | null = null;
 
     try {
@@ -82,6 +83,7 @@ export function useGeneration({
           setSlots((prev) => prev.filter((s) => s.index !== event.index));
           setProgress({ done: received, total });
         } else if (event.type === "post_error") {
+          firstFailure ??= event.message;
           setSlots((prev) => prev.map((s) => (s.index === event.index ? { ...s, status: "error", message: event.message } : s)));
         } else if (event.type === "fatal") {
           fatal = event.message;
@@ -107,7 +109,14 @@ export function useGeneration({
     } else if (done.created === 0) {
       setSlots([]);
       await reload();
-      notify("error", "Aucun post n'a pu être rédigé. Tes posts précédents sont conservés, réessaie dans un instant.");
+      // La raison réelle (crédit épuisé, limite de requêtes…) vaut mieux qu'un message générique.
+      const reason = firstFailure as string | null;
+      notify(
+        "error",
+        reason
+          ? `Aucun post n'a pu être rédigé : ${reason} Tes posts précédents sont conservés.`
+          : "Aucun post n'a pu être rédigé. Tes posts précédents sont conservés, réessaie dans un instant.",
+      );
     } else if (done.failed > 0) {
       notify("error", `${done.created} post(s) rédigé(s), ${done.failed} en échec : utilise « Réessayer » sur les cartes concernées.`);
     } else if (done.calendar.error) {

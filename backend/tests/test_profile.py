@@ -65,3 +65,18 @@ def test_examples_crud_and_isolation(client, user, other_user):
 
     assert client.delete(f"/api/examples/{ex_id}", headers=user["headers"]).status_code == 204
     assert client.get("/api/examples", headers=user["headers"]).json() == []
+
+
+def test_mojibake_is_repaired_on_save_and_read(client, user):
+    # Texte UTF-8 relu en Latin-1 (terminal, script) : écrit avec des échappements pour rester lisible.
+    broken = {
+        "job_title": "DÃ©veloppeuse web",
+        "bio": "J'ai conÃ§u une plateforme Ã  Paris",
+        "themes": ["Ã‰quipe"],
+    }
+    r = client.put("/api/profile", json=broken, headers=user["headers"])
+    assert r.status_code == 200
+    got = client.get("/api/profile", headers=user["headers"]).json()
+    assert got["job_title"] == "Développeuse web"
+    assert got["bio"] == "J'ai conçu une plateforme à Paris"
+    assert got["themes"] == ["Équipe"]

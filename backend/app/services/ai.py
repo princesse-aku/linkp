@@ -10,6 +10,7 @@ import httpx
 
 from ..config import settings
 from ..schemas import ProfileOut, StyleAnalysis
+from ..textfix import fix_mojibake
 
 
 class AIError(Exception):
@@ -123,7 +124,7 @@ def strip_dashes(text: str) -> str:
 
 def clean(text: str) -> str:
     """Nettoyage commun de tout texte généré : ni emoji, ni tiret long."""
-    return strip_dashes(strip_emojis(text)).strip()
+    return strip_dashes(strip_emojis(fix_mojibake(text))).strip()
 
 
 def _persona(profile: ProfileOut) -> str:

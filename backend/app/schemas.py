@@ -4,11 +4,13 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .textfix import fix_mojibake
+
 
 def _clean_list(values: list[str], max_items: int, max_len: int) -> list[str]:
     seen: list[str] = []
     for v in values:
-        v = v.strip()[:max_len]
+        v = fix_mojibake(v).strip()[:max_len]
         if v and v.lower() not in (s.lower() for s in seen):
             seen.append(v)
     return seen[:max_items]
@@ -39,6 +41,11 @@ class ProfileIn(BaseModel):
     posts_per_week: int = Field(3, ge=1, le=7)
     publish_time: time | None = None
 
+    @field_validator("full_name", "job_title", "industry", "bio", mode="before")
+    @classmethod
+    def _repair_text(cls, v):
+        return fix_mojibake(v)
+
     @field_validator("tones")
     @classmethod
     def _tones(cls, v: list[str]) -> list[str]:
@@ -68,6 +75,11 @@ class ProfileOut(ProfileIn):
 class ExampleIn(BaseModel):
     content: str = Field(min_length=20, max_length=5000)
 
+    @field_validator("content", mode="before")
+    @classmethod
+    def _repair_text(cls, v):
+        return fix_mojibake(v)
+
 
 class ExampleOut(ExampleIn):
     id: str
@@ -92,6 +104,11 @@ class PostUpdate(BaseModel):
     scheduled_for: str | None = None
     status: PostStatus | None = None
     media_urls: list[str] | None = Field(None, max_length=10)
+
+    @field_validator("content", "theme", mode="before")
+    @classmethod
+    def _repair_text(cls, v):
+        return fix_mojibake(v)
 
 
 class PostRegenerate(BaseModel):

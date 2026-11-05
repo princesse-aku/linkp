@@ -22,6 +22,46 @@ const TIMEZONES = [
   "Africa/Casablanca",
 ];
 
+// Le texte saisi est gardé tel quel pendant la frappe (on peut effacer puis taper) ;
+// la valeur est ramenée entre 1 et 7 quand on quitte le champ.
+function PerWeekInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const [text, setText] = useState(String(value));
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    setText(String(value));
+  }
+
+  function commit() {
+    const n = Math.min(7, Math.max(1, parseInt(text, 10) || 1));
+    setText(String(n));
+    setLastValue(n);
+    onChange(n);
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[1-7]"
+      maxLength={1}
+      className={`${input} mt-1`}
+      value={text}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/\D/g, "");
+        setText(digits);
+        const n = parseInt(digits, 10);
+        if (n >= 1 && n <= 7) {
+          setLastValue(n);
+          onChange(n);
+        }
+      }}
+      onFocus={(e) => e.target.select()}
+      onBlur={commit}
+    />
+  );
+}
+
 export default function ProfileSection({
   profile,
   onChange,
@@ -199,14 +239,7 @@ export default function ProfileSection({
           </label>
           <label className="text-base">
             Posts par semaine
-            <input
-              type="number"
-              min={1}
-              max={7}
-              className={`${input} mt-1`}
-              value={profile.posts_per_week}
-              onChange={(e) => set("posts_per_week", Math.min(7, Math.max(1, Number(e.target.value) || 1)))}
-            />
+            <PerWeekInput value={profile.posts_per_week} onChange={(n) => set("posts_per_week", n)} />
           </label>
           <label className="text-base">
             Heure de publication

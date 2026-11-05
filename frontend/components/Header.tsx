@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/lib/useAuth";
+import AccountLink from "./AccountLink";
 import { IconArrowRight, IconClose, IconMenu } from "./Icons";
 import Logo from "./Logo";
 
@@ -14,6 +16,7 @@ const links = [
 // Barre de navigation « pastille flottante » : détachée du bord, elle se resserre au défilement,
 // met en valeur la section lue (indicateur qui glisse) et affiche la progression de lecture.
 export default function Header() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -115,16 +118,18 @@ export default function Header() {
           </nav>
 
           <div className="hidden items-center gap-1 whitespace-nowrap lg:flex">
-            <Link href="/login" className="rounded-full px-4 py-2.5 text-base font-medium text-stone-700 hover:bg-cream">
-              Connexion
-            </Link>
-            <Link
-              href="/signup"
+            {!user && (
+              <Link href="/login" className="rounded-full px-4 py-2.5 text-base font-medium text-stone-700 hover:bg-cream">
+                Connexion
+              </Link>
+            )}
+            <AccountLink
+              guestHref="/signup"
               className="group inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-base font-semibold text-cream transition hover:bg-accent"
             >
               Créer un compte
               <IconArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
+            </AccountLink>
           </div>
 
           <button
@@ -160,13 +165,19 @@ export default function Header() {
                 </a>
               ))}
             </nav>
-            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-line pt-3">
-              <Link href="/login" onClick={() => setOpen(false)} className="rounded-full border border-stone-300 py-3 text-center text-base font-semibold">
-                Connexion
-              </Link>
-              <Link href="/signup" onClick={() => setOpen(false)} className="rounded-full bg-accent py-3 text-center text-base font-semibold text-white">
+            <div className={`mt-2 grid gap-2 border-t border-line pt-3 ${user ? "grid-cols-1" : "grid-cols-2"}`}>
+              {!user && (
+                <Link href="/login" onClick={() => setOpen(false)} className="rounded-full border border-stone-300 py-3 text-center text-base font-semibold">
+                  Connexion
+                </Link>
+              )}
+              <AccountLink
+                guestHref="/signup"
+                onClick={() => setOpen(false)}
+                className="rounded-full bg-accent py-3 text-center text-base font-semibold text-white"
+              >
                 Créer un compte
-              </Link>
+              </AccountLink>
             </div>
           </div>
         )}

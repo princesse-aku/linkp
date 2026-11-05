@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import Link from "next/link";
 import { DoodleArrow, DoodleCrumple, DoodlePin, DoodlePlane, DoodleSpark, DoodleSquiggle } from "@/components/Doodles";
+import AccountLink from "@/components/AccountLink";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import { IconArrowDown, IconArrowRight, IconCalendar, IconCheck, IconSpark } from "@/components/Icons";
@@ -236,12 +236,13 @@ export default function Home() {
               </p>
 
               <div className="fade-up mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-4 [animation-delay:300ms]">
-                <Link
-                  href="/signup"
+                <AccountLink
+                  guestHref="/signup"
+                  memberLabel="Ouvrir mon tableau de bord"
                   className="inline-flex items-center gap-2 rounded-full bg-accent px-8 py-4 text-base font-semibold text-white shadow-lg shadow-accent/25 transition hover:-translate-y-0.5 hover:bg-accent-dark"
                 >
                   Commencer gratuitement <IconArrowRight className="h-4 w-4" />
-                </Link>
+                </AccountLink>
                 <a href="#fonctionnement" className="inline-flex min-h-11 items-center text-base font-semibold text-ink underline decoration-accent decoration-2 underline-offset-8 hover:text-accent">
                   Voir comment ça marche
                 </a>
@@ -500,12 +501,13 @@ export default function Home() {
             <p className="mx-auto mt-5 max-w-xl text-lg text-white/85">
               Crée ton compte, remplis ton profil, et laisse LinkP s&apos;occuper de la page blanche.
             </p>
-            <Link
-              href="/signup"
+            <AccountLink
+              guestHref="/signup"
+              memberLabel="Ouvrir mon tableau de bord"
               className="mt-10 inline-flex items-center gap-2 rounded-full bg-cream px-8 py-4 text-base font-semibold text-ink transition hover:-translate-y-0.5 hover:bg-white"
             >
               Créer mon compte gratuitement <IconArrowRight className="h-4 w-4" />
-            </Link>
+            </AccountLink>
           </div>
         </section>
       </main>

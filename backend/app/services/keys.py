@@ -20,6 +20,19 @@ def _fernet() -> Fernet:
     return Fernet(base64.urlsafe_b64encode(hashlib.sha256(settings.secret_key.encode()).digest()))
 
 
+def encrypt(value: str) -> str:
+    """Chiffre une valeur secrète (jeton, clé) avant de l'écrire en base."""
+    return _fernet().encrypt(value.encode()).decode()
+
+
+def decrypt(value: str) -> str:
+    """Déchiffre une valeur écrite par encrypt(). Une valeur non chiffrée (ancien format) est renvoyée telle quelle."""
+    try:
+        return _fernet().decrypt(value.encode()).decode()
+    except InvalidToken:
+        return value
+
+
 def _doc(uid: str):
     return user_doc(uid).collection("private").document("rodium")
 
@@ -27,7 +40,7 @@ def _doc(uid: str):
 def save_key(uid: str, api_key: str) -> None:
     _doc(uid).set(
         {
-            "cipher": _fernet().encrypt(api_key.encode()).decode(),
+            "cipher": encrypt(api_key),
             "last4": api_key[-4:],
             "saved_at": now(),
         }

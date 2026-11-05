@@ -7,6 +7,7 @@ import jwt
 
 from ..config import settings
 from ..store import now, user_doc
+from .keys import decrypt, encrypt
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -91,8 +92,8 @@ def handle_callback(code: str, uid: str) -> None:
         email = jwt.decode(tokens["id_token"], options={"verify_signature": False}).get("email")
     _token_doc(uid).set(
         {
-            "refresh_token": tokens["refresh_token"],
-            "access_token": tokens.get("access_token"),
+            "refresh_token": encrypt(tokens["refresh_token"]),
+            "access_token": encrypt(tokens["access_token"]) if tokens.get("access_token") else None,
             "expires_at": now() + timedelta(seconds=int(tokens.get("expires_in", 3600))),
             "email": email,
             "connected_at": now(),
@@ -109,8 +110,9 @@ def status(uid: str) -> dict:
 def disconnect(uid: str) -> None:
     snap = _token_doc(uid).get()
     if snap.exists:
-        token = (snap.to_dict() or {}).get("refresh_token")
-        if token:
+        stored = (snap.to_dict() or {}).get("refresh_token")
+        if stored:
+            token = decrypt(stored)
             try:
                 httpx.post(REVOKE_URL, data={"token": token}, timeout=10)
             except httpx.HTTPError:
@@ -125,14 +127,14 @@ def _access_token(uid: str) -> str:
     data = snap.to_dict() or {}
     expires = data.get("expires_at")
     if data.get("access_token") and expires and expires > now() + timedelta(seconds=60):
-        return data["access_token"]
+        return decrypt(data["access_token"])
     try:
-        tokens = _post_token({"refresh_token": data["refresh_token"], "grant_type": "refresh_token"})
+        tokens = _post_token({"refresh_token": decrypt(data["refresh_token"]), "grant_type": "refresh_token"})
     except NotConnected:
         _token_doc(uid).delete()
         raise
     _token_doc(uid).update(
-        {"access_token": tokens["access_token"], "expires_at": now() + timedelta(seconds=int(tokens.get("expires_in", 3600)))}
+        {"access_token": encrypt(tokens["access_token"]), "expires_at": now() + timedelta(seconds=int(tokens.get("expires_in", 3600)))}
     )
     return tokens["access_token"]
 

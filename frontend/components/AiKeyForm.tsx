@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { api, errorMessage } from "@/lib/api";
 import type { AiKeyStatus } from "@/lib/types";
@@ -106,6 +107,12 @@ export default function AiKeyForm({
           </div>
         </form>
       )}
+      <p className="text-sm leading-relaxed text-stone-500">
+        Ta clé est chiffrée avant d&apos;être enregistrée et ne s&apos;affiche plus jamais en entier. Tu peux la supprimer à tout moment.{" "}
+        <Link href="/confidentialite#securite" target="_blank" className="font-medium text-accent underline underline-offset-4">
+          Comment elle est protégée et comment la révoquer
+        </Link>
+      </p>
       {status.configured && !editing && error && (
         <p role="alert" className="text-base text-red-600">
           {error}

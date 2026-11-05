@@ -128,6 +128,30 @@ def test_calendar_callback_stores_tokens_and_connects(client, user, monkeypatch)
     assert client.get("/api/calendar/status", headers=user["headers"]).json()["connected"] is True
 
 
+def test_google_tokens_are_encrypted_at_rest_and_legacy_ones_still_work(client, user, monkeypatch):
+    from app.services import keys
+    from app.store import user_doc
+
+    monkeypatch.setattr(settings, "google_client_id", "client-123")
+    monkeypatch.setattr(settings, "google_client_secret", "secret")
+    monkeypatch.setattr(
+        gcal,
+        "_post_token",
+        lambda data: {"refresh_token": "refresh-secret", "access_token": "access-secret", "expires_in": 3600},
+    )
+    client.get(f"/api/calendar/callback?code=abc&state={gcal.make_state(user['uid'])}", follow_redirects=False)
+
+    doc = user_doc(user["uid"]).collection("private").document("google")
+    stored = doc.get().to_dict()
+    assert "refresh-secret" not in str(stored) and "access-secret" not in str(stored)
+    assert gcal._access_token(user["uid"]) == "access-secret"
+
+    # Ancien format : jeton enregistré en clair avant le chiffrement.
+    doc.update({"access_token": "legacy-access"})
+    assert gcal._access_token(user["uid"]) == "legacy-access"
+    assert keys.decrypt("texte-en-clair") == "texte-en-clair"
+
+
 def test_posts_get_calendar_events_when_connected(client, user, ai_key, monkeypatch):
     from app.services import ai
 

@@ -56,4 +56,4 @@ export function pageMeta({ title, description, path, noindex = false, absoluteTi
 }
 
 // Pages publiques indexables (utilisé par le plan du site).
-export const PUBLIC_PATHS = ["/", "/signup", "/login"] as const;
+export const PUBLIC_PATHS = ["/", "/signup", "/login", "/confidentialite", "/conditions"] as const;

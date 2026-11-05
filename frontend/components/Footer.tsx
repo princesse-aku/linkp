@@ -1,4 +1,5 @@
 import Link from "next/link";
+import FooterAccount from "./FooterAccount";
 import { IconHeart } from "./Icons";
 import { LogoMark } from "./Logo";
 
@@ -11,15 +12,7 @@ const columns = [
       ["/#faq", "Questions fréquentes"],
     ],
   },
-  {
-    title: "Mon espace",
-    links: [
-      ["/login", "Connexion"],
-      ["/signup", "Créer un compte"],
-      ["/dashboard", "Tableau de bord"],
-    ],
-  },
-];
+]
 
 export default function Footer() {
   return (
@@ -51,11 +44,21 @@ export default function Footer() {
             </ul>
           </nav>
         ))}
+
+        <FooterAccount />
       </div>
 
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-cream/60 sm:flex-row">
-          <p>© LinkP. Tous droits réservés.</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-5">
+            <p>© LinkP. Tous droits réservés.</p>
+            <Link href="/confidentialite" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-white hover:underline">
+              Confidentialité et sécurité
+            </Link>
+            <Link href="/conditions" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-white hover:underline">
+              Conditions d&apos;utilisation
+            </Link>
+          </div>
           <p className="inline-flex flex-wrap items-center justify-center gap-1.5">
             Créé avec
             <span className="heartbeat text-accent" role="img" aria-label="amour">

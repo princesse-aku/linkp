@@ -144,6 +144,19 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         />
         {error && <FormError>{error}</FormError>}
         <SubmitButton busy={busy}>{signup ? "Créer mon compte" : "Se connecter"}</SubmitButton>
+        {signup && (
+          <p className="text-center text-sm leading-relaxed text-stone-500">
+            En créant ton compte, tu acceptes les{" "}
+            <Link href="/conditions" className="font-medium text-stone-700 underline underline-offset-4 hover:text-accent">
+              conditions d&apos;utilisation
+            </Link>{" "}
+            et la{" "}
+            <Link href="/confidentialite" className="font-medium text-stone-700 underline underline-offset-4 hover:text-accent">
+              politique de confidentialité
+            </Link>
+            .
+          </p>
+        )}
       </form>
     </AuthShell>
   );

@@ -1,10 +1,10 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { DoodleArrow, DoodleCrumple, DoodlePin, DoodlePlane, DoodleSpark, DoodleSquiggle } from "@/components/Doodles";
+import { DoodleArrow, DoodlePin, DoodlePlane, DoodleSpark, DoodleSquiggle } from "@/components/Doodles";
 import AccountLink from "@/components/AccountLink";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
-import { IconArrowDown, IconArrowRight, IconCalendar, IconCheck, IconSpark } from "@/components/Icons";
+import { IconArrowDown, IconArrowRight, IconCalendar, IconSpark } from "@/components/Icons";
 import { Floater, PlanningWidget, ThemesWidget, ToolTiles } from "@/components/landing/Widgets";
 import { LogoMark } from "@/components/Logo";
 import Reveal from "@/components/Reveal";
@@ -58,7 +58,6 @@ const cardShadow = "shadow-[0_24px_50px_-22px_rgba(60,40,20,0.4)]";
 function Eyebrow({ children, center = false }: { children: React.ReactNode; center?: boolean }) {
   return (
     <p className={`flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent ${center ? "justify-center" : ""}`}>
-      <span className="h-px w-8 bg-accent" />
       {children}
     </p>
   );
@@ -85,29 +84,6 @@ function PostPaper() {
           <IconSpark className="h-3.5 w-3.5" /> Dans ta voix
         </span>
       </div>
-    </div>
-  );
-}
-
-function BlankPageArt() {
-  return (
-    <div className="relative mt-12 max-w-sm">
-      <div className={`rotate-[-3deg] rounded-sm border border-line bg-paper p-6 ${cardShadow}`}>
-        <div className="flex gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-line" />
-          <span className="h-2.5 w-2.5 rounded-full bg-line" />
-          <span className="h-2.5 w-2.5 rounded-full bg-line" />
-        </div>
-        <div className="mt-6 h-2.5 w-28 rounded bg-line" />
-        <div className="mt-8 flex h-24 items-start font-serif text-2xl text-ink">
-          <span className="caret" />
-        </div>
-      </div>
-      <span className="float absolute -right-2 -top-8 font-serif text-6xl italic text-accent">?</span>
-      <span className="float absolute -left-6 top-6 font-serif text-4xl italic text-forest" style={{ animationDelay: "-2s" }}>
-        ?
-      </span>
-      <DoodleCrumple className="float absolute -bottom-6 right-6 h-16 w-16" />
     </div>
   );
 }
@@ -243,18 +219,7 @@ export default function Home() {
                 >
                   Commencer gratuitement <IconArrowRight className="h-4 w-4" />
                 </AccountLink>
-                <a href="#fonctionnement" className="inline-flex min-h-11 items-center text-base font-semibold text-ink underline decoration-accent decoration-2 underline-offset-8 hover:text-accent">
-                  Voir comment ça marche
-                </a>
               </div>
-
-              <ul className="fade-up mt-8 flex flex-wrap justify-center gap-x-7 gap-y-2 text-base text-stone-600 [animation-delay:450ms]">
-                {["Ton style, pas un texte générique", "Prêt en 5 minutes", "Tu gardes la main"].map((t) => (
-                  <li key={t} className="inline-flex items-center gap-2">
-                    <IconCheck className="h-4 w-4 text-accent" /> {t}
-                  </li>
-                ))}
-              </ul>
 
               {/* Mobile : un seul visuel sous le texte */}
               <div className="fade-up mt-14 w-full lg:hidden">
@@ -287,9 +252,6 @@ export default function Home() {
             <Floater className="left-[30%] top-[7%] text-accent" delay={1300} duration={6}>
               <DoodleSpark className="h-5 w-5" />
             </Floater>
-            <Floater className="right-[30%] bottom-[10%] text-accent" delay={1500} duration={6}>
-              <DoodleSpark className="h-4 w-4" />
-            </Floater>
           </div>
         </section>
 
@@ -317,7 +279,6 @@ export default function Home() {
                 LinkP est né d&apos;un problème très personnel : savoir de quoi parler, et trouver les mots, prend plus de temps que
                 l&apos;écriture elle-même.
               </p>
-              <BlankPageArt />
             </Reveal>
             <ol className="divide-y divide-line self-start border-y border-line">
               {pains.map(([t, d], i) => (
@@ -448,7 +409,6 @@ export default function Home() {
           <div className="mx-auto max-w-6xl px-6">
             <Reveal>
               <p className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#E9B58F]">
-                <span className="h-px w-8 bg-[#E9B58F]" />
                 Ce qui change tout
               </p>
               <h2 className="mt-6 max-w-2xl font-serif text-4xl font-medium leading-tight tracking-tight sm:text-5xl">
@@ -492,8 +452,6 @@ export default function Home() {
         {/* CTA final */}
         <section className="px-6 pb-24">
           <div className="relative mx-auto max-w-5xl overflow-hidden bg-accent px-8 py-20 text-center text-white">
-            <DoodleSpark className="float absolute left-[8%] top-[18%] h-6 w-6 text-white/70" />
-            <DoodleSpark className="float absolute bottom-[20%] right-[10%] h-8 w-8 text-white/70" />
             <DoodlePlane className="wiggle absolute right-[8%] top-[14%] hidden h-16 w-16 text-white/80 sm:block" />
             <h2 className="mx-auto max-w-2xl font-serif text-4xl font-medium leading-tight tracking-tight sm:text-5xl">
               Ton prochain post est déjà à <span className="italic">moitié écrit</span>.

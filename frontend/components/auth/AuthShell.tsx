@@ -124,7 +124,6 @@ export default function AuthShell({
         <div className={`mx-auto flex w-full flex-1 flex-col justify-center py-10 ${wide ? "max-w-lg" : "max-w-md"}`}>
           {eyebrow && (
             <p className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-              <span className="h-px w-8 bg-accent" />
               {eyebrow}
             </p>
           )}

@@ -34,7 +34,6 @@ export default function LegalLayout({
       <main className="mx-auto max-w-5xl px-6 pb-24 pt-8 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14">
         <div className="lg:col-span-2">
           <p className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-            <span className="h-px w-8 bg-accent" />
             {eyebrow}
           </p>
           <h1 className="mt-4 max-w-3xl font-serif text-4xl font-medium leading-[1.08] tracking-tight sm:text-5xl [&_em]:italic [&_em]:text-accent">{title}</h1>

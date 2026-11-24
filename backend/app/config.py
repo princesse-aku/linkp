@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # Chiffre les clés RodiumAI des utilisateurs (clé Fernet). Obligatoire en production.
     encryption_key: str = ""
 
+    # Adresses email autorisées à ouvrir /admin (séparées par des virgules). Vide : personne.
+    admin_emails: str = ""
+
     # Firebase : en dev, les SDK lisent FIRESTORE_EMULATOR_HOST et FIREBASE_AUTH_EMULATOR_HOST.
     firebase_project_id: str = "demo-linkp"
     firebase_service_account_json: str = ""  # JSON inline ou chemin de fichier (production)
@@ -43,6 +46,10 @@ class Settings(BaseSettings):
     cloudinary_api_secret: str = ""
     cloudinary_folder: str = "linkp"
     max_upload_mb: int = 10
+
+    @property
+    def admin_email_list(self) -> list[str]:
+        return [e.strip().lower() for e in self.admin_emails.split(",") if e.strip()]
 
     @property
     def is_production(self) -> bool:

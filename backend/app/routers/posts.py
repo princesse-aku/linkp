@@ -22,7 +22,9 @@ from ..schemas import (
     PostUpdate,
     ProfileOut,
 )
-from ..services import ai, images, keys
+from collections import Counter
+
+from ..services import activity, ai, images, keys
 from ..services import calendar as gcal
 from ..services import media as media_svc
 from ..services.planner import plan_slots
@@ -202,6 +204,11 @@ def generate_stream(body: GenerateIn | None = None, user: AuthUser = Depends(cur
         calendar = CalendarSyncResult(connected=gcal.status(uid)["connected"])
         replaced = not body.replace_drafts
         created = failed = 0
+        errors: Counter = Counter()
+
+        def summary(**extra) -> dict:
+            return dict(total=len(plan.themes), created=created, failed=failed, errors=dict(errors) or None,
+                        calendar_synced=calendar.synced or None, **extra)
 
         def write(theme: str) -> str:
             return ai.generate_post(plan.profile, plan.examples, theme, api_key=plan.api_key, style=plan.profile.style_analysis)
@@ -214,15 +221,19 @@ def generate_stream(body: GenerateIn | None = None, user: AuthUser = Depends(cur
                 try:
                     text = future.result()
                 except ai.AIKeyRejected as exc:
+                    errors[activity.error_kind(exc)] += 1
+                    activity.log_event(uid, "generation", **summary(fatal=True))
                     yield _line({"type": "fatal", "status": 424, "message": str(exc)})
                     return
                 except ai.AIError as exc:
                     failed += 1
+                    errors[activity.error_kind(exc)] += 1
                     yield _line({"type": "post_error", "index": index, "message": str(exc)})
                     continue
                 except Exception:  # erreur inattendue sur un seul post : on ne casse pas les autres
                     log.exception("Rédaction du post %s impossible", index)
                     failed += 1
+                    errors["other"] += 1
                     yield _line({"type": "post_error", "index": index, "message": "Erreur inattendue pendant la rédaction."})
                     continue
 
@@ -240,6 +251,7 @@ def generate_stream(body: GenerateIn | None = None, user: AuthUser = Depends(cur
                         calendar.synced += 1
                 created += 1
                 yield _line({"type": "post", "index": index, "post": _out(data).model_dump()})
+            activity.log_event(uid, "generation", **summary())
             yield _line({"type": "done", "created": created, "failed": failed, "calendar": calendar.model_dump()})
         finally:
             # Navigateur fermé ou arrêt anticipé : on n'attend pas les rédactions restantes.
@@ -259,10 +271,13 @@ def generate_one(body: GenerateOneIn, user: AuthUser = Depends(current_user)):
     profile = load_profile(user.uid, user.email)
     try:
         text = ai.generate_post(profile, load_examples(user.uid), body.theme, api_key=api_key, style=profile.style_analysis)
-    except ai.AIKeyRejected:
+    except ai.AIKeyRejected as exc:
+        activity.log_event(user.uid, "post_retry", ok=False, error=activity.error_kind(exc))
         raise
     except ai.AIError as exc:
+        activity.log_event(user.uid, "post_retry", ok=False, error=activity.error_kind(exc))
         raise HTTPException(502, str(exc))
+    activity.log_event(user.uid, "post_retry", ok=True)
     data = _new_post(body.theme, text, body.scheduled_for)
     _, ref = sub(user.uid, "posts").add(data)
     data["id"] = ref.id
@@ -308,10 +323,13 @@ def regenerate(post_id: str, body: PostRegenerate, user: AuthUser = Depends(curr
             instruction=body.instruction,
             previous=post.get("content") if body.instruction else None,
         )
-    except ai.AIKeyRejected:
+    except ai.AIKeyRejected as exc:
+        activity.log_event(user.uid, "post_regenerated", ok=False, error=activity.error_kind(exc))
         raise  # géré par le gestionnaire global (424)
     except ai.AIError as exc:
+        activity.log_event(user.uid, "post_regenerated", ok=False, error=activity.error_kind(exc))
         raise HTTPException(502, str(exc))
+    activity.log_event(user.uid, "post_regenerated", ok=True)
     ref.update({"content": text, "updated_at": now()})
     post["content"] = text
     if post.get("calendar_event_id") and post.get("scheduled_for"):
@@ -338,7 +356,12 @@ def generate_post_image(post_id: str, body: PostImageIn | None = None, user: Aut
         raise HTTPException(503, str(exc))
 
     prompt = images.build_prompt(post.get("theme", ""), post.get("content", ""), body.instruction)
-    data, content_type = images.generate_image(prompt, api_key=api_key)  # AIKeyRejected -> 424, AIError -> 502
+    try:
+        data, content_type = images.generate_image(prompt, api_key=api_key)  # AIKeyRejected -> 424, AIError -> 502
+    except ai.AIError as exc:
+        activity.log_event(user.uid, "image_generated", ok=False, error=activity.error_kind(exc))
+        raise
+    activity.log_event(user.uid, "image_generated", ok=True)
 
     filename = f"post-{post_id}.{_EXTENSIONS[content_type]}"
     try:

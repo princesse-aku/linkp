@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse
 from ..auth import AuthUser, current_user
 from ..config import settings
 from ..schemas import CalendarStatus, CalendarSyncResult
+from ..services import activity
 from ..services import calendar as gcal
 from ..store import load_profile, sub, with_id
 
@@ -41,7 +42,9 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     if error or not code or not state:
         return _back("error", error or "refused")
     try:
-        gcal.handle_callback(code, gcal.read_state(state))
+        uid = gcal.read_state(state)
+        gcal.handle_callback(code, uid)
+        activity.log_event(uid, "calendar_connected")
     except gcal.CalendarError as exc:
         log.warning("Connexion Google Agenda échouée : %s", exc)
         return _back("error", "failed")
@@ -84,3 +87,4 @@ def disconnect(user: AuthUser = Depends(current_user)):
                 log.info("Événement non supprimé : %s", exc)
             snap.reference.update({"calendar_event_id": None})
     gcal.disconnect(user.uid)
+    activity.log_event(user.uid, "calendar_disconnected")

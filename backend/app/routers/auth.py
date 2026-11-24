@@ -12,6 +12,7 @@ from ..auth import AuthUser, current_user
 from ..config import settings
 from ..firebase import init_firebase
 from ..schemas import PasswordResetIn
+from ..services import activity
 from ..services import email as mail
 
 log = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ def welcome(user: AuthUser = Depends(current_user)):
     if not user.email:
         raise HTTPException(400, "Ce compte n'a pas d'adresse email.")
     init_firebase()
+    activity.log_event(user.uid, "signup", verified=user.email_verified)  # avant l'envoi : une panne d'email ne doit pas effacer l'inscription
     verify_url = None
     if not user.email_verified:
         try:

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import AuthUser, current_user
 from ..schemas import AiKeyIn, AiKeyStatus, StyleAnalysis, ThemeSuggestions
-from ..services import ai, keys
+from ..services import activity, ai, keys
 from ..store import load_examples, load_profile, user_doc
 
 router = APIRouter(prefix="/ai", tags=["ia"])
@@ -19,14 +19,20 @@ def key_status(user: AuthUser = Depends(current_user)):
 @router.put("/key", response_model=AiKeyStatus)
 def save_key(body: AiKeyIn, user: AuthUser = Depends(current_user)):
     """Vérifie la clé auprès de RodiumAI, puis l'enregistre chiffrée."""
-    ai.validate_key(body.api_key)
+    try:
+        ai.validate_key(body.api_key)
+    except ai.AIError as exc:
+        activity.log_event(user.uid, "key_saved", ok=False, error=activity.error_kind(exc))
+        raise
     keys.save_key(user.uid, body.api_key)
+    activity.log_event(user.uid, "key_saved", ok=True)
     return keys.status(user.uid)
 
 
 @router.delete("/key", status_code=204)
 def remove_key(user: AuthUser = Depends(current_user)):
     keys.delete_key(user.uid)
+    activity.log_event(user.uid, "key_removed")
 
 
 # --- Fonctions IA (toutes utilisent la clé de l'utilisateur) ----------------
@@ -41,6 +47,7 @@ def analyze_style(user: AuthUser = Depends(current_user)):
         raise HTTPException(400, "Ajoute au moins un post d'exemple pour analyser ton style.")
     analysis = ai.analyze_style(profile, examples, api_key=api_key)
     user_doc(user.uid).set({"style_analysis": analysis.model_dump()}, merge=True)
+    activity.log_event(user.uid, "style_analyzed", examples=len(examples))
     return analysis
 
 
@@ -50,4 +57,6 @@ def suggest_themes(user: AuthUser = Depends(current_user)):
     profile = load_profile(user.uid, user.email)
     if not (profile.job_title or profile.industry or profile.bio):
         raise HTTPException(400, "Renseigne ton poste, ton secteur ou ta présentation pour recevoir des idées.")
-    return ThemeSuggestions(themes=ai.suggest_themes(profile, api_key=api_key))
+    themes = ai.suggest_themes(profile, api_key=api_key)
+    activity.log_event(user.uid, "themes_suggested", count=len(themes))
+    return ThemeSuggestions(themes=themes)

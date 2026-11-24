@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from .config import settings
 from .firebase import init_firebase, using_emulator
 from .routers import ai as ai_router
-from .routers import auth, calendar, media, posts, profile
+from .routers import admin, auth, calendar, media, posts, profile
 from .services.ai import AIError, AIKeyMissing, AIKeyRejected
 from .services.calendar import CalendarError, NotConnected
 from .services.email import EmailError
@@ -40,7 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth.router, profile.router, ai_router.router, posts.router, calendar.router, media.router):
+for r in (auth.router, profile.router, ai_router.router, posts.router, calendar.router, media.router, admin.router):
     app.include_router(r, prefix="/api")
 
 

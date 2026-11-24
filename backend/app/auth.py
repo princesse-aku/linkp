@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from firebase_admin import auth as fb_auth
 
+from .config import settings
 from .firebase import init_firebase
 
 log = logging.getLogger(__name__)
@@ -36,3 +37,14 @@ def current_user(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -
         email_verified=bool(decoded.get("email_verified")),
         name=decoded.get("name"),
     )
+
+
+def require_admin(user: AuthUser = Depends(current_user)) -> AuthUser:
+    """Réserve une route aux adresses listées dans ADMIN_EMAILS.
+
+    L'adresse doit être vérifiée : sans cela, quelqu'un pourrait créer un compte avec l'adresse d'un admin.
+    La réponse est un 404 pour ne pas révéler que la route existe.
+    """
+    if not (user.email and user.email_verified and user.email.lower() in settings.admin_email_list):
+        raise HTTPException(status_code=404, detail="Not Found")
+    return user

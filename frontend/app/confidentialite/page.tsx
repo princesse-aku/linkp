@@ -51,6 +51,11 @@ const sections: LegalSection[] = [
             expliqué dans la section suivante.
           </li>
           <li>
+            <strong>Un journal d&apos;activité :</strong> les grandes actions sur ton compte (inscription, clé ajoutée ou supprimée, génération de posts et
+            ses éventuelles erreurs, agenda connecté), avec la date. Il ne contient jamais le texte de tes posts, de ton profil, ni tes clés. Il sert à
+            comprendre les problèmes, à t&apos;aider et à améliorer LinkP, et seul l&apos;éditeur y a accès.
+          </li>
+          <li>
             <strong>Des journaux techniques :</strong> adresse IP, date et route appelée, conservés par l&apos;hébergeur pour la sécurité et le diagnostic.
             Ils ne contiennent jamais tes clés.
           </li>
@@ -179,6 +184,10 @@ const sections: LegalSection[] = [
         </p>
         <ul>
           <li>Nous ne vendons pas tes données et ne les louons à personne.</li>
+          <li>
+            Dans l&apos;espace d&apos;administration, l&apos;éditeur voit des informations de compte et d&apos;activité (adresse email, dates, nombre de posts,
+            étapes franchies, erreurs), mais jamais le contenu de tes posts, de ton profil ni tes clés.
+          </li>
           <li>Nous n&apos;affichons aucune publicité et n&apos;utilisons aucun outil de mesure d&apos;audience.</li>
           <li>
             Nous n&apos;utilisons pas ton contenu pour entraîner un modèle d&apos;IA. Les textes envoyés à RodiumAI le sont avec ta clé, selon les conditions
@@ -311,7 +320,7 @@ export default function PrivacyPage() {
         </>
       }
       intro="LinkP te demande des accès sensibles pour travailler à ta place : une clé d'IA et, si tu veux, ton agenda. Voici précisément comment nous les protégeons, et comment les révoquer en cas de problème."
-      updated="5 novembre 2026"
+      updated="24 novembre 2026"
       sections={sections}
     />
   );

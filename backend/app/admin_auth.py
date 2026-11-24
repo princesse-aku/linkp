@@ -1,14 +1,14 @@
-"""Contrôle d'accès de l'espace admin, en trois niveaux cumulatifs.
+"""Contrôle d'accès de l'espace admin.
 
-  admin_identity  compte connecté, adresse vérifiée et autorisée (sinon 404 : la route se fait passer pour inexistante)
-  admin_session   + code de confirmation saisi pour la connexion en cours (sinon 401 « admin_session_required »)
+Pas de compte ni de mot de passe : on prouve qu'on contrôle l'adresse en saisissant le code reçu par email, et le serveur remet une
+session signée (en-tête X-Admin-Session). Sans session valide : 401 « admin_session_required ». Le rôle est relu à chaque appel.
+  admin_session   session valide d'un admin ou d'un superadmin
   superadmin      + rôle superadmin (sinon 403)
 """
 from dataclasses import dataclass
 
 from fastapi import Depends, HTTPException, Request
 
-from .auth import AuthUser, current_user
 from .services import admin_access as access
 
 SESSION_HEADER = "X-Admin-Session"
@@ -16,25 +16,19 @@ SESSION_HEADER = "X-Admin-Session"
 
 @dataclass
 class AdminUser:
-    user: AuthUser
+    email: str
     role: str
 
     @property
-    def email(self) -> str:
-        return (self.user.email or "").lower()
+    def actor(self) -> str:
+        return access.actor(self.email)
 
 
-def admin_identity(user: AuthUser = Depends(current_user)) -> AdminUser:
-    role = access.role_of(user.email) if user.email and user.email_verified else None
-    if not role:
-        raise HTTPException(status_code=404, detail="Not Found")
-    return AdminUser(user, role)
-
-
-def admin_session(request: Request, admin: AdminUser = Depends(admin_identity)) -> AdminUser:
-    if not access.session_valid(request.headers.get(SESSION_HEADER), admin.user):
+def admin_session(request: Request) -> AdminUser:
+    found = access.session_identity(request.headers.get(SESSION_HEADER))
+    if not found:
         raise HTTPException(status_code=401, detail="admin_session_required")
-    return admin
+    return AdminUser(*found)
 
 
 def superadmin(admin: AdminUser = Depends(admin_session)) -> AdminUser:

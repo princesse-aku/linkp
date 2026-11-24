@@ -38,7 +38,7 @@ export type AdminOverview = {
 };
 
 export type AdminRole = "admin" | "superadmin";
-export type AdminMe = { email: string; role: AdminRole; session: boolean };
+export type AdminMe = { email: string; role: AdminRole };
 export type AdminMember = {
   email: string;
   role: AdminRole;

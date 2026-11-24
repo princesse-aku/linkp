@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from ..admin_auth import SESSION_HEADER, AdminUser, admin_identity, admin_session, superadmin
+from ..admin_auth import AdminUser, admin_session, superadmin
 from ..services import activity
 from ..services import admin as svc
 from ..services import admin_access as access
@@ -9,7 +9,12 @@ from ..services import admin_access as access
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+class CodeRequest(BaseModel):
+    email: str = Field(max_length=254)
+
+
 class CodeIn(BaseModel):
+    email: str = Field(max_length=254)
     code: str = Field(max_length=20)
 
 
@@ -17,30 +22,25 @@ class AdminIn(BaseModel):
     email: str = Field(max_length=254)
 
 
-# --- Identité et confirmation par code (réservées aux adresses autorisées) --------------------
+# --- Connexion par code (publique : ne révèle pas quelles adresses sont administratrices) ------
+
+@router.post("/login/code", status_code=202)
+def send_code(body: CodeRequest):
+    """Envoie un code à 6 chiffres à l'adresse si elle est administratrice. La réponse est la même dans tous les cas."""
+    return access.send_code(body.email)
+
+
+@router.post("/login/verify")
+def verify_code(body: CodeIn):
+    return access.verify_code(body.email, body.code)
+
 
 @router.get("/me")
-def me(request: Request, admin: AdminUser = Depends(admin_identity)):
-    """Rôle de l'utilisateur et indique si le code de confirmation a déjà été saisi pour cette connexion."""
-    return {
-        "email": admin.user.email,
-        "role": admin.role,
-        "session": access.session_valid(request.headers.get(SESSION_HEADER), admin.user),
-    }
+def me(admin: AdminUser = Depends(admin_session)):
+    return {"email": admin.email, "role": admin.role}
 
 
-@router.post("/session/code", status_code=202)
-def send_code(admin: AdminUser = Depends(admin_identity)):
-    """Envoie un code à 6 chiffres à l'adresse du compte."""
-    return access.send_code(admin.user)
-
-
-@router.post("/session/verify")
-def verify_code(body: CodeIn, admin: AdminUser = Depends(admin_identity)):
-    return access.verify_code(admin.user, admin.role, body.code)
-
-
-# --- Données (code de confirmation requis) ----------------------------------------------------
+# --- Données (session admin requise) ----------------------------------------------------
 
 @router.get("/overview", dependencies=[Depends(admin_session)])
 def overview():
@@ -75,11 +75,11 @@ def admins(admin: AdminUser = Depends(superadmin)):
 @router.post("/admins", status_code=201)
 def add_admin(body: AdminIn, admin: AdminUser = Depends(superadmin)):
     created = access.add_admin(body.email, by=admin.email)
-    activity.log_event(admin.user.uid, "admin_added", target=created["email"])
+    activity.log_event(admin.actor, "admin_added", target=created["email"])
     return created
 
 
 @router.delete("/admins/{email}", status_code=204)
 def remove_admin(email: str, admin: AdminUser = Depends(superadmin)):
     access.remove_admin(email)
-    activity.log_event(admin.user.uid, "admin_removed", target=access.normalize(email))
+    activity.log_event(admin.actor, "admin_removed", target=access.normalize(email))

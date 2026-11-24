@@ -97,16 +97,16 @@ def welcome_email(name: str | None, verify_url: str | None) -> tuple[str, str, s
 
 def admin_code_email(code: str, minutes: int) -> tuple[str, str, str]:
     paragraphs = [
-        "Voici ton code de confirmation pour ouvrir l'espace admin de LinkP :",
+        "Voici ton code de connexion pour ouvrir l'espace admin de LinkP :",
         f"Il expire dans {minutes} minutes et ne sert qu'une fois.",
-        "Si tu n'es pas à l'origine de cette connexion, ne le communique à personne : quelqu'un connaît peut-être ton mot de passe. Change-le.",
+        "Si tu n'es pas à l'origine de cette demande, ne communique ce code à personne et ignore cet email.",
     ]
     text = (
-        f"Ton code de confirmation pour l'espace admin LinkP : {code}\n\n"
+        f"Ton code de connexion pour l'espace admin LinkP : {code}\n\n"
         f"Il expire dans {minutes} minutes et ne sert qu'une fois.\n"
-        "Si tu n'es pas à l'origine de cette connexion, ne le communique à personne et change ton mot de passe."
+        "Si tu n'es pas à l'origine de cette demande, ne communique ce code à personne et ignore cet email."
     )
-    return f"Ton code de connexion admin : {code}", _layout("Code de confirmation", paragraphs, code=code), text
+    return f"Ton code de connexion admin : {code}", _layout("Code de connexion", paragraphs, code=code), text
 
 
 def verification_email(verify_url: str) -> tuple[str, str, str]:

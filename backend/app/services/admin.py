@@ -181,11 +181,12 @@ def events(*, uid: str | None = None, type: str | None = None, errors_only: bool
         items = [e for e in items if e["meta"].get("ok") is False or e["meta"].get("errors") or e["meta"].get("error")][:limit]
 
     # Adresse email de chaque utilisateur cité, en un seul appel
-    wanted = sorted({e["uid"] for e in items if e["uid"]})
+    wanted = sorted({e["uid"] for e in items if e["uid"] and not e["uid"].startswith("admin:")})
     emails: dict[str, str | None] = {}
     for i in range(0, len(wanted), 100):
         res = fb_auth.get_users([fb_auth.UidIdentifier(u) for u in wanted[i : i + 100]])
         emails.update({u.uid: u.email for u in res.users})
     for e in items:
-        e["email"] = emails.get(e["uid"])
+        # Un admin connecté par code n'a pas forcément de compte : son adresse est dans l'identifiant du journal.
+        e["email"] = e["uid"][6:] if (e["uid"] or "").startswith("admin:") else emails.get(e["uid"])
     return {"events": items}

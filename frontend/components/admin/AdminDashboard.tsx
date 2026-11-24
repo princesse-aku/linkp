@@ -1,15 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IconCheck, IconChevronRight, IconClose } from "@/components/Icons";
 import Logo from "@/components/Logo";
-import { signOut } from "firebase/auth";
 import { ApiError, errorMessage } from "@/lib/api";
-import { firebaseAuth } from "@/lib/firebase";
-import { useAuth } from "@/lib/useAuth";
-import AdminCodeGate from "./AdminCodeGate";
 import AdminLogin from "./AdminLogin";
 import AdminsPanel from "./AdminsPanel";
 import { ADMIN_SESSION_EXPIRED, adminApi, forgetAdminSession } from "./adminApi";
@@ -853,74 +848,10 @@ function Notice({ title, children, actions }: { title: string; children: React.R
   );
 }
 
-const logOut = () => (forgetAdminSession(), signOut(firebaseAuth()));
-const linkBtn = "inline-flex min-h-11 items-center rounded-full px-5 text-base font-medium text-stone-600 hover:bg-cream hover:text-ink";
-
-function AdminApp({ email }: { email: string }) {
-  const router = useRouter();
-  const [state, setState] = useState<"checking" | "denied" | "error" | "code" | "ok">("checking");
-  const [me, setMe] = useState<AdminMe | null>(null);
+function AdminApp({ me, onLogout }: { me: AdminMe; onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>("overview");
   const [openUid, setOpenUid] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  const check = useCallback(() => {
-    adminApi<AdminMe>("/me")
-      .then((r) => (setMe(r), setState(r.session ? "ok" : "code")))
-      .catch((e) => setState(e instanceof ApiError && e.status === 404 ? "denied" : "error")); // 404 : compte non autorisé
-  }, []);
-  useEffect(check, [check]);
-
-  // Le serveur a refusé la session (nouvelle connexion, expiration) : retour à l'écran du code.
-  useEffect(() => {
-    const back = () => setState("code");
-    window.addEventListener(ADMIN_SESSION_EXPIRED, back);
-    return () => window.removeEventListener(ADMIN_SESSION_EXPIRED, back);
-  }, []);
-
-  if (state === "denied") {
-    return (
-      <Notice
-        title="Accès non autorisé"
-        actions={
-          <>
-            <button onClick={logOut} className="min-h-11 rounded-full bg-ink px-6 text-base font-semibold text-cream hover:bg-accent">
-              Changer de compte
-            </button>
-            <Link href="/dashboard" className={linkBtn}>
-              Retour à mon espace
-            </Link>
-          </>
-        }
-      >
-        Le compte <strong className="break-all text-ink">{email}</strong> n&apos;a pas accès à l&apos;espace admin. Si c&apos;est le bon compte, vérifie que son adresse email est
-        confirmée, puis reconnecte-toi.
-      </Notice>
-    );
-  }
-  if (state === "error") {
-    return (
-      <Notice
-        title="Connexion impossible"
-        actions={
-          <>
-            <button onClick={() => (setState("checking"), check())} className="min-h-11 rounded-full bg-ink px-6 text-base font-semibold text-cream hover:bg-accent">
-              Réessayer
-            </button>
-            <button onClick={logOut} className={linkBtn}>
-              Changer de compte
-            </button>
-          </>
-        }
-      >
-        Le serveur n&apos;a pas répondu. Réessaie dans un instant.
-      </Notice>
-    );
-  }
-  if (state === "code" && me) {
-    return <AdminCodeGate email={me.email} onVerified={(role) => (setMe({ ...me, role, session: true }), setState("ok"))} />;
-  }
-  if (state === "checking" || !me) return <Splash />;
 
   return (
     <div className="min-h-screen">
@@ -938,14 +869,7 @@ function AdminApp({ email }: { email: string }) {
             <Link href="/dashboard" className="inline-flex min-h-11 items-center rounded-full px-4 font-medium text-stone-600 hover:bg-white hover:text-ink">
               Mon espace
             </Link>
-            <button
-              onClick={() => (forgetAdminSession(), router.push("/dashboard"))}
-              className="min-h-11 rounded-full px-4 font-medium text-stone-600 hover:bg-white hover:text-ink"
-              title="Efface la session admin : un nouveau code sera demandé"
-            >
-              Verrouiller
-            </button>
-            <button onClick={logOut} className="min-h-11 rounded-full px-4 font-medium text-stone-600 hover:bg-white hover:text-ink">
+            <button onClick={onLogout} className="min-h-11 rounded-full px-4 font-medium text-stone-600 hover:bg-white hover:text-ink" title="Un nouveau code sera demandé à la prochaine connexion">
               Déconnexion
             </button>
           </div>
@@ -994,8 +918,41 @@ function AdminApp({ email }: { email: string }) {
 }
 
 export default function AdminDashboard() {
-  const { user, loading } = useAuth();
-  if (loading) return <Splash />;
-  if (!user) return <AdminLogin />;
-  return <AdminApp key={user.uid} email={user.email ?? ""} />;
+  const [phase, setPhase] = useState<"checking" | "login" | "error" | "ok">("checking");
+  const [me, setMe] = useState<AdminMe | null>(null);
+
+  // Une session encore valide (même onglet, moins de 12 h) évite de redemander un code.
+  const check = useCallback(() => {
+    adminApi<AdminMe>("/me")
+      .then((r) => (setMe(r), setPhase("ok")))
+      .catch((e) => setPhase(e instanceof ApiError && e.status === 401 ? "login" : "error"));
+  }, []);
+  useEffect(check, [check]);
+
+  // Le serveur a refusé la session (expiration, accès retiré) : retour à la connexion.
+  useEffect(() => {
+    const back = () => (setMe(null), setPhase("login"));
+    window.addEventListener(ADMIN_SESSION_EXPIRED, back);
+    return () => window.removeEventListener(ADMIN_SESSION_EXPIRED, back);
+  }, []);
+
+  const logout = () => (forgetAdminSession(), setMe(null), setPhase("login"));
+
+  if (phase === "login") return <AdminLogin onVerified={(m) => (setMe(m), setPhase("ok"))} />;
+  if (phase === "error") {
+    return (
+      <Notice
+        title="Connexion impossible"
+        actions={
+          <button onClick={() => (setPhase("checking"), check())} className="min-h-11 rounded-full bg-ink px-6 text-base font-semibold text-cream hover:bg-accent">
+            Réessayer
+          </button>
+        }
+      >
+        Le serveur n&apos;a pas répondu. Réessaie dans un instant.
+      </Notice>
+    );
+  }
+  if (phase === "checking" || !me) return <Splash />;
+  return <AdminApp me={me} onLogout={logout} />;
 }

@@ -1,10 +1,9 @@
 "use client";
 
-import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import Link from "next/link";
 import { useState } from "react";
 import Field, { FormError, SubmitButton } from "@/components/auth/Field";
-import GoogleLogo from "@/components/auth/GoogleLogo";
 import Logo from "@/components/Logo";
 import { readableAuthError } from "@/lib/authErrors";
 import { firebaseAuth } from "@/lib/firebase";
@@ -29,17 +28,6 @@ export default function AdminLogin() {
     }
   }
 
-  async function google() {
-    setError("");
-    setBusy(true);
-    try {
-      await signInWithPopup(firebaseAuth(), new GoogleAuthProvider());
-    } catch (err) {
-      setError(readableAuthError(err));
-      setBusy(false);
-    }
-  }
-
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-6 py-10">
       <div className="w-full max-w-md">
@@ -53,23 +41,7 @@ export default function AdminLogin() {
             Réservé aux administrateurs de LinkP. Un code de confirmation te sera envoyé par email après la connexion.
           </p>
 
-          <button
-            type="button"
-            onClick={google}
-            disabled={busy}
-            className="mt-7 flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-line bg-white px-7 py-3 text-base font-semibold shadow-sm transition hover:bg-cream disabled:opacity-60"
-          >
-            <GoogleLogo />
-            Continuer avec Google
-          </button>
-
-          <div className="my-6 flex items-center gap-4 text-sm text-stone-500">
-            <span className="h-px flex-1 bg-line" />
-            ou avec ton email
-            <span className="h-px flex-1 bg-line" />
-          </div>
-
-          <form onSubmit={submit} className="space-y-5">
+          <form onSubmit={submit} className="mt-7 space-y-5">
             <Field label="Email" type="email" required autoComplete="email" placeholder="toi@exemple.com" value={email} onChange={setEmail} />
             <Field
               label="Mot de passe"

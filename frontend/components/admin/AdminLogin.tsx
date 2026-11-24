@@ -75,7 +75,7 @@ export default function AdminLogin({ onVerified }: { onVerified: (me: { email: s
             <>
               <h1 className="mt-3 text-center font-serif text-3xl font-medium leading-tight tracking-tight">Connexion</h1>
               <p className="mt-3 text-center text-base leading-relaxed text-stone-600">
-                Réservé aux administrateurs de LinkP. Saisis ton adresse : un code à 6 chiffres t&apos;y sera envoyé, sans mot de passe.
+                Réservé aux administrateurs de LinkP.
               </p>
               <form
                 onSubmit={(e) => {

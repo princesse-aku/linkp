@@ -53,8 +53,17 @@ def _send_smtp(to: str, subject: str, html_body: str, text_body: str) -> None:
         raise EmailError(f"Envoi SMTP impossible : {exc}") from exc
 
 
-def _layout(title: str, paragraphs: list[str], cta_label: str | None = None, cta_url: str | None = None) -> str:
+def _layout(
+    title: str, paragraphs: list[str], cta_label: str | None = None, cta_url: str | None = None, code: str | None = None
+) -> str:
     body = "".join(f'<p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#3b342d">{html.escape(p)}</p>' for p in paragraphs)
+    if code:  # code de confirmation : gros chiffres espacés, placé après le premier paragraphe
+        block = (
+            '<p style="margin:8px 0 24px;padding:18px 0;text-align:center;background:#FAF5EC;border:1px solid #E4D9C8;'
+            f'font-size:34px;font-weight:700;letter-spacing:10px;color:#C8502D">{html.escape(code)}</p>'
+        )
+        first, _, rest = body.partition("</p>")
+        body = first + "</p>" + block + rest
     button = ""
     if cta_label and cta_url:
         button = (
@@ -84,6 +93,20 @@ def welcome_email(name: str | None, verify_url: str | None) -> tuple[str, str, s
         cta_label = "Confirmer mon adresse"
         text += f"\n\nConfirme ton adresse : {verify_url}"
     return "Bienvenue sur LinkP", _layout("Bienvenue sur LinkP", paragraphs, cta_label, verify_url), text
+
+
+def admin_code_email(code: str, minutes: int) -> tuple[str, str, str]:
+    paragraphs = [
+        "Voici ton code de confirmation pour ouvrir l'espace admin de LinkP :",
+        f"Il expire dans {minutes} minutes et ne sert qu'une fois.",
+        "Si tu n'es pas à l'origine de cette connexion, ne le communique à personne : quelqu'un connaît peut-être ton mot de passe. Change-le.",
+    ]
+    text = (
+        f"Ton code de confirmation pour l'espace admin LinkP : {code}\n\n"
+        f"Il expire dans {minutes} minutes et ne sert qu'une fois.\n"
+        "Si tu n'es pas à l'origine de cette connexion, ne le communique à personne et change ton mot de passe."
+    )
+    return f"Ton code de connexion admin : {code}", _layout("Code de confirmation", paragraphs, code=code), text
 
 
 def verification_email(verify_url: str) -> tuple[str, str, str]:

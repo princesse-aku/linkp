@@ -37,7 +37,22 @@ export type AdminOverview = {
   generation_30d: { runs: number; runs_7d: number; posts_created: number; posts_failed: number; errors: Record<string, number> };
 };
 
+export type AdminRole = "admin" | "superadmin";
+export type AdminMe = { email: string; role: AdminRole; session: boolean };
+export type AdminMember = {
+  email: string;
+  role: AdminRole;
+  removable: boolean;
+  source: "config" | "database";
+  added_by?: string | null;
+  added_at?: string | null;
+};
+
 export const EVENT_LABELS: Record<string, string> = {
+  admin_login: "Connexion admin",
+  admin_login_failed: "Code admin refusé",
+  admin_added: "Admin ajouté",
+  admin_removed: "Admin retiré",
   signup: "Inscription",
   key_saved: "Clé IA enregistrée",
   key_removed: "Clé IA supprimée",
@@ -73,6 +88,12 @@ export function describe(e: AdminEvent): { text: string; bad: boolean } {
     const fails = kinds.length ? ` (${kinds.join(", ")})` : "";
     return { text: base + fails + (m.fatal ? ", arrêtée" : ""), bad: Boolean(m.failed) || kinds.length > 0 };
   }
+  if (e.type === "admin_login") return { text: m.role === "superadmin" ? "Superadmin" : "Admin", bad: false };
+  if (e.type === "admin_login_failed") {
+    const reasons: Record<string, string> = { wrong: "code incorrect", locked: "trop d'essais", expired: "code expiré", none: "aucun code en cours", format: "format invalide" };
+    return { text: reasons[String(m.reason)] ?? "code refusé", bad: true };
+  }
+  if (e.type === "admin_added" || e.type === "admin_removed") return { text: String(m.target ?? ""), bad: false };
   if (m.ok === false) return { text: `Échec${m.error ? ` : ${errorLabel(String(m.error))}` : ""}`, bad: true };
   if (e.type === "style_analyzed") return { text: `${m.examples ?? 0} exemple(s) analysé(s)`, bad: false };
   if (e.type === "themes_suggested") return { text: `${m.count ?? 0} idée(s) proposée(s)`, bad: false };

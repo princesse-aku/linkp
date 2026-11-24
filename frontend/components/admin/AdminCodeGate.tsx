@@ -1,10 +1,12 @@
 "use client";
 
+import { signOut } from "firebase/auth";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Logo from "@/components/Logo";
 import { api, ApiError, errorMessage } from "@/lib/api";
-import { adminApi, rememberAdminSession } from "./adminApi";
+import { firebaseAuth } from "@/lib/firebase";
+import { adminApi, forgetAdminSession, rememberAdminSession } from "./adminApi";
 import type { AdminRole } from "./adminTypes";
 
 // Étape de confirmation : un code à 6 chiffres est envoyé par email à chaque nouvelle connexion à l'admin.
@@ -123,6 +125,12 @@ export default function AdminCodeGate({ email, onVerified }: { email: string; on
               className="min-h-11 rounded-full px-5 text-base font-semibold text-accent hover:bg-cream disabled:text-stone-400 disabled:hover:bg-transparent"
             >
               {cooldown > 0 ? `Renvoyer un code dans ${cooldown} s` : "Renvoyer un code"}
+            </button>
+            <button
+              onClick={() => (forgetAdminSession(), signOut(firebaseAuth()))}
+              className="min-h-11 rounded-full px-5 text-base font-medium text-stone-600 hover:bg-cream hover:text-ink"
+            >
+              Utiliser un autre compte
             </button>
             <Link href="/dashboard" className="inline-flex min-h-11 items-center rounded-full px-5 text-base font-medium text-stone-600 hover:bg-cream hover:text-ink">
               Retour à mon espace

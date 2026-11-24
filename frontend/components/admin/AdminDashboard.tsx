@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IconCheck, IconChevronRight, IconClose } from "@/components/Icons";
 import Logo from "@/components/Logo";
-import { errorMessage } from "@/lib/api";
+import { signOut } from "firebase/auth";
+import { ApiError, errorMessage } from "@/lib/api";
+import { firebaseAuth } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
 import AdminCodeGate from "./AdminCodeGate";
+import AdminLogin from "./AdminLogin";
 import AdminsPanel from "./AdminsPanel";
 import { ADMIN_SESSION_EXPIRED, adminApi, forgetAdminSession } from "./adminApi";
 import {
@@ -824,25 +827,49 @@ function UserDrawer({ uid, onClose }: { uid: string; onClose: () => void }) {
 
 // --- Page ----------------------------------------------------------------------
 
-export default function AdminDashboard() {
+function Splash() {
+  return (
+    <main className="mx-auto max-w-6xl px-6 py-10">
+      <div className="skeleton h-10 w-48" />
+    </main>
+  );
+}
+
+function Notice({ title, children, actions }: { title: string; children: React.ReactNode; actions: React.ReactNode }) {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center px-6 py-10">
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex justify-center">
+          <Logo compact href="/" />
+        </div>
+        <div className="rounded-3xl border border-line bg-paper p-8 text-center shadow-xl shadow-ink/5">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Espace admin</p>
+          <h1 className="mt-3 font-serif text-3xl font-medium leading-tight tracking-tight">{title}</h1>
+          <div className="mt-3 text-base leading-relaxed text-stone-600">{children}</div>
+          <div className="mt-6 flex flex-col items-center gap-1">{actions}</div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+const logOut = () => (forgetAdminSession(), signOut(firebaseAuth()));
+const linkBtn = "inline-flex min-h-11 items-center rounded-full px-5 text-base font-medium text-stone-600 hover:bg-cream hover:text-ink";
+
+function AdminApp({ email }: { email: string }) {
   const router = useRouter();
-  const { user, loading } = useAuth();
-  const [state, setState] = useState<"checking" | "denied" | "code" | "ok">("checking");
+  const [state, setState] = useState<"checking" | "denied" | "error" | "code" | "ok">("checking");
   const [me, setMe] = useState<AdminMe | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [openUid, setOpenUid] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    if (loading) return;
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
+  const check = useCallback(() => {
     adminApi<AdminMe>("/me")
       .then((r) => (setMe(r), setState(r.session ? "ok" : "code")))
-      .catch(() => setState("denied")); // 404 : pas admin, la page se fait passer pour une page inexistante
-  }, [user, loading, router]);
+      .catch((e) => setState(e instanceof ApiError && e.status === 404 ? "denied" : "error")); // 404 : compte non autorisé
+  }, []);
+  useEffect(check, [check]);
 
   // Le serveur a refusé la session (nouvelle connexion, expiration) : retour à l'écran du code.
   useEffect(() => {
@@ -853,25 +880,47 @@ export default function AdminDashboard() {
 
   if (state === "denied") {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
-        <p className="font-serif text-6xl italic text-accent">404</p>
-        <h1 className="font-serif text-3xl font-medium">Cette page n&apos;existe pas.</h1>
-        <Link href="/" className="inline-flex min-h-11 items-center rounded-full bg-ink px-6 text-base font-semibold text-cream hover:bg-accent">
-          Retour à l&apos;accueil
-        </Link>
-      </main>
+      <Notice
+        title="Accès non autorisé"
+        actions={
+          <>
+            <button onClick={logOut} className="min-h-11 rounded-full bg-ink px-6 text-base font-semibold text-cream hover:bg-accent">
+              Changer de compte
+            </button>
+            <Link href="/dashboard" className={linkBtn}>
+              Retour à mon espace
+            </Link>
+          </>
+        }
+      >
+        Le compte <strong className="break-all text-ink">{email}</strong> n&apos;a pas accès à l&apos;espace admin. Si c&apos;est le bon compte, vérifie que son adresse email est
+        confirmée, puis reconnecte-toi.
+      </Notice>
+    );
+  }
+  if (state === "error") {
+    return (
+      <Notice
+        title="Connexion impossible"
+        actions={
+          <>
+            <button onClick={() => (setState("checking"), check())} className="min-h-11 rounded-full bg-ink px-6 text-base font-semibold text-cream hover:bg-accent">
+              Réessayer
+            </button>
+            <button onClick={logOut} className={linkBtn}>
+              Changer de compte
+            </button>
+          </>
+        }
+      >
+        Le serveur n&apos;a pas répondu. Réessaie dans un instant.
+      </Notice>
     );
   }
   if (state === "code" && me) {
     return <AdminCodeGate email={me.email} onVerified={(role) => (setMe({ ...me, role, session: true }), setState("ok"))} />;
   }
-  if (state === "checking" || !me) {
-    return (
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <div className="skeleton h-10 w-48" />
-      </main>
-    );
-  }
+  if (state === "checking" || !me) return <Splash />;
 
   return (
     <div className="min-h-screen">
@@ -895,6 +944,9 @@ export default function AdminDashboard() {
               title="Efface la session admin : un nouveau code sera demandé"
             >
               Verrouiller
+            </button>
+            <button onClick={logOut} className="min-h-11 rounded-full px-4 font-medium text-stone-600 hover:bg-white hover:text-ink">
+              Déconnexion
             </button>
           </div>
         </div>
@@ -939,4 +991,11 @@ export default function AdminDashboard() {
       {openUid && <UserDrawer uid={openUid} onClose={() => setOpenUid(null)} />}
     </div>
   );
+}
+
+export default function AdminDashboard() {
+  const { user, loading } = useAuth();
+  if (loading) return <Splash />;
+  if (!user) return <AdminLogin />;
+  return <AdminApp key={user.uid} email={user.email ?? ""} />;
 }
